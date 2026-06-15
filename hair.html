@@ -462,12 +462,13 @@
             try {
                 if (!window.FirebaseBridge) return;
 
-                // Connect to cloud node using runtime config injected into window.
-                const ok = window.FirebaseBridge.connectCloudNode(window.__FIREBASE_CONFIG__ || {});
-                if (!ok) return;
+                // IMPORTANT: FirebaseBridge.connectCloudNode returns a bundle with read/subscribe/push.
+                // hair.html currently expects those methods on FirebaseBridge directly.
+                const res = window.FirebaseBridge.connectCloudNode(window.__FIREBASE_CONFIG__ || {});
+                if (!res || !res.bundle) return;
 
                 // One-time load
-                const cloudState = await window.FirebaseBridge.readStateFromCloud();
+                const cloudState = await res.bundle.readStateFromCloud();
                 if (cloudState && typeof cloudState === 'object') {
                     localStorage.setItem('nexus_v3_matrix_ledger', JSON.stringify(cloudState));
                     compileAppInterfaceMatrix();
@@ -475,12 +476,15 @@
                 }
 
                 // Live sync
-                window.FirebaseBridge.subscribeStateFromCloud((updated) => {
+                res.bundle.subscribeStateFromCloud((updated) => {
                     if (!updated || typeof updated !== 'object') return;
                     localStorage.setItem('nexus_v3_matrix_ledger', JSON.stringify(updated));
                     compileAppInterfaceMatrix();
                     runMetricsEngine();
                 });
+
+                // Also stash bundle methods so toggleMatrixNode can push+read reliably.
+                window.FirebaseBridge.__bundle = res.bundle;
             } catch (e) {
                 // Silent: cloud sync shouldn't break local UI.
             }
@@ -512,16 +516,13 @@
             // Best-effort: if Firebase is not connected, we still keep localStorage working.
             (async () => {
                 try {
-                    if (window.FirebaseBridge && typeof window.FirebaseBridge.pushStateToCloud === 'function') {
-                        if (!window.FirebaseBridge._isConnected) {
-                            window.FirebaseBridge.connectCloudNode(window.__FIREBASE_CONFIG__ || {});
-                        }
-
+                    const bundle = window.FirebaseBridge?.__bundle;
+                    if (bundle && typeof bundle.pushStateToCloud === 'function' && typeof bundle.readStateFromCloud === 'function') {
                         // 1) Push update
-                        await window.FirebaseBridge.pushStateToCloud(state);
+                        await bundle.pushStateToCloud(state);
 
                         // 2) Re-read canonical cloud state and apply locally
-                        const canonical = await window.FirebaseBridge.readStateFromCloud();
+                        const canonical = await bundle.readStateFromCloud();
                         if (canonical && typeof canonical === 'object') {
                             localStorage.setItem('nexus_v3_matrix_ledger', JSON.stringify(canonical));
                             compileAppInterfaceMatrix();
