@@ -584,8 +584,14 @@
 
                 writeTerminalLog('SYSTEM', 'CLOUD: connected, reading ledger...');
 
+                // Debug: log the Firebase path we're using
+                try {
+                    writeTerminalLog('SYSTEM', `CLOUD: activePath=${window.FirebaseBridge?.activePath}`);
+                } catch (e) {}
+
                 // 1) One-time load
                 const cloudState = await res.bundle.readStateFromCloud();
+
                 const cloudSize = (cloudState && typeof cloudState === 'object') ? Object.keys(cloudState).length : 0;
                 writeTerminalLog('SYSTEM', `CLOUD: read complete. entries=${cloudSize}`);
 
@@ -615,18 +621,16 @@
 
         async function dispatchLedgerToFirebase(payload) {
             try {
-                if (window.FirebaseBridge && typeof window.FirebaseBridge.pushUserData === "function") {
-                    // Use the bridge's internal activePath.
-                    // In this project, pushUserData(payloadObj) writes to FirebaseBridge.activePath.
-                    // Passing a 2nd argument is ignored by many bridge implementations.
-                    // (kept for compatibility)
-                
-                        await window.FirebaseBridge.pushUserData(payload);
+                // Match hair.html pushing behavior: push through the live bundle.
+                const bundle = window.FirebaseBridge?.__bundle;
+                if (bundle && typeof bundle.pushStateToCloud === 'function') {
+                    await bundle.pushStateToCloud(payload);
                 }
-            } catch(e) {
+            } catch (e) {
                 console.error("Firebase database push transmission interrupted: ", e);
             }
         }
+
 
         function colorizeCardFrame(dayIndex) {
             const card = document.getElementById(`daycard-index-${dayIndex}`);
