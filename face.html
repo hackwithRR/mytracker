@@ -147,15 +147,22 @@
             <section class="hud-glass rounded-xl p-4 space-y-2">
                 <span class="font-hud text-[10px] uppercase text-slate-400 font-bold tracking-wide block">Matrix Location Jump Terminal</span>
                 <div class="flex gap-2">
-                    <input type="number" id="txtJumpDay" min="1" max="28" placeholder="Enter Day Index (1-28)..." 
+                    <input type="number" id="txtJumpDay" min="1" max="152" placeholder="Enter Day Index (1-152)..." 
                            class="flex-1 bg-slate-950 border border-slate-900 rounded-lg px-3 py-1.5 font-code text-[11px] text-slate-200 outline-none focus:border-[#ff007f] transition-all">
                     <button onclick="executeDayWarpJump()" class="px-3 bg-cyan-950/40 text-cyan-400 border border-cyan-800/50 hover:bg-cyan-900/50 font-hud text-[11px] font-bold uppercase rounded-lg transition-all">Warp</button>
                 </div>
-                <div class="grid grid-cols-4 gap-1 pt-1 font-hud text-[9px] text-center font-bold">
-                    <button onclick="warpToPhaseSection(1)" class="p-1 bg-slate-950 hover:bg-slate-900 border border-slate-900 rounded text-slate-400 hover:text-[#ff007f]">W1</button>
-                    <button onclick="warpToPhaseSection(2)" class="p-1 bg-slate-950 hover:bg-slate-900 border border-slate-900 rounded text-slate-400 hover:text-cyan-400">W2</button>
-                    <button onclick="warpToPhaseSection(3)" class="p-1 bg-slate-950 hover:bg-slate-900 border border-slate-900 rounded text-slate-400 hover:text-fuchsia-400">W3</button>
-                    <button onclick="warpToPhaseSection(4)" class="p-1 bg-slate-950 hover:bg-slate-900 border border-slate-900 rounded text-slate-400 hover:text-emerald-400">W4</button>
+                <div class="grid grid-cols-6 gap-1 pt-1 font-hud text-[9px] text-center font-bold">
+                    <button onclick="warpToPhaseSection(1)" class="p-1 bg-slate-950 hover:bg-slate-900 border border-slate-900 rounded text-slate-400 hover:text-[#ff007f]">M1</button>
+                    <button onclick="warpToPhaseSection(2)" class="p-1 bg-slate-950 hover:bg-slate-900 border border-slate-900 rounded text-slate-400 hover:text-cyan-400">M2</button>
+                    <button onclick="warpToPhaseSection(3)" class="p-1 bg-slate-950 hover:bg-slate-900 border border-slate-900 rounded text-slate-400 hover:text-fuchsia-400">M3</button>
+                    <button onclick="warpToPhaseSection(4)" class="p-1 bg-slate-950 hover:bg-slate-900 border border-slate-900 rounded text-slate-400 hover:text-emerald-400">M4</button>
+                    <button onclick="warpToPhaseSection(5)" class="p-1 bg-slate-950 hover:bg-slate-900 border border-slate-900 rounded text-slate-400 hover:text-emerald-400">M5</button>
+
+                    <button onclick="executeWeekJump(1)" class="p-1 bg-slate-950 hover:bg-slate-900 border border-slate-900 rounded text-slate-400 hover:text-[#ff007f]">W1</button>
+                    <button onclick="executeWeekJump(2)" class="p-1 bg-slate-950 hover:bg-slate-900 border border-slate-900 rounded text-slate-400 hover:text-cyan-400">W2</button>
+                    <button onclick="executeWeekJump(3)" class="p-1 bg-slate-950 hover:bg-slate-900 border border-slate-900 rounded text-slate-400 hover:text-fuchsia-400">W3</button>
+                    <button onclick="executeWeekJump(4)" class="p-1 bg-slate-950 hover:bg-slate-900 border border-slate-900 rounded text-slate-400 hover:text-emerald-400">W4</button>
+                    <button onclick="executeWeekJump(5)" class="p-1 bg-slate-950 hover:bg-slate-900 border border-slate-900 rounded text-slate-400 hover:text-emerald-400">W5</button>
                 </div>
             </section>
 
@@ -526,7 +533,7 @@
                             <div>
                                 <div class="flex items-center justify-between border-b border-slate-900 pb-1 mb-2">
                                     <span class="font-hud font-black text-white text-[11px]">DAY ${String(dayNum).padStart(3, '0')}</span>
-                                    <span class="text-[9px] font-code text-slate-600 font-bold">W0${phaseKey}</span>
+                                    <span class="text-[9px] font-code text-slate-600 font-bold">M${phaseKey}</span>
                                 </div>
                                 <div class="grid grid-cols-1 gap-1">${elementsHtml}</div>
                             </div>
@@ -674,8 +681,8 @@
         function executeDayWarpJump() {
             const targetField = document.getElementById("txtJumpDay");
             const value = parseInt(targetField.value);
-            if (!value || value < 1 || value > 28) {
-                writeTerminalLog("ERROR", "Vector location input out of index boundaries (1-28).");
+            if (!value || value < 1 || value > 152) {
+                writeTerminalLog("ERROR", "Vector location input out of index boundaries (1-152).");
                 return;
             }
             const cardElement = document.getElementById(`daycard-index-${value}`);
@@ -688,11 +695,30 @@
             }
         }
 
-        function warpToPhaseSection(weekIndex) {
-            const anchor = document.getElementById(`anchor-phase-section-${weekIndex}`);
+        function warpToPhaseSection(phaseKey) {
+            const anchor = document.getElementById(`anchor-phase-section-${phaseKey}`);
             if (anchor) {
                 anchor.scrollIntoView({ behavior: 'smooth', block: 'start' });
-                writeTerminalLog("WARP", `Jumped to structural execution week: 0${weekIndex}`);
+                writeTerminalLog("WARP", `Jumped to phase block: MONTH ${phaseKey}`);
+            }
+        }
+
+        function executeWeekJump(weekIndex) {
+            // In this UI, we treat weekIndex as 1..5 and map it to the phase ranges from globalMatrixDataset.
+            // Phase 1 starts at day 1; Phase 2 starts at day 8; Phase 3 at day 15; Phase 4 at day 22; Phase 5 at day 29.
+            const weekStartDay = {
+                1: 1,
+                2: 8,
+                3: 15,
+                4: 22,
+                5: 29
+            }[weekIndex];
+
+            if (!weekStartDay) return;
+            const cardElement = document.getElementById(`daycard-index-${weekStartDay}`);
+            if (cardElement) {
+                cardElement.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                writeTerminalLog("WARP", `Jumped to WEEK ${weekIndex} (DAY ${weekStartDay})`);
             }
         }
 
