@@ -570,25 +570,58 @@
 
         async function syncLedgerFromFirebase() {
             try {
-                if (window.FirebaseBridge && typeof window.FirebaseBridge.pullUserData === "function") {
-                    writeTerminalLog("FIREBASE", "Initializing secure synchronization stream...");
-                    let cloudData = await window.FirebaseBridge.pullUserData("dermal_ledger_v3");
-                    if (cloudData) {
-                        localStorage.setItem("dermal_v3_matrix_ledger", JSON.stringify(cloudData));
-                        compileAppInterfaceMatrix();
-                        runMetricsEngine();
-                        writeTerminalLog("FIREBASE", "Cloud telemetry payload integrated perfectly.");
-                    }
+                // Live-sync implementation to match hair.html behavior.
+                if (!window.FirebaseBridge || typeof window.FirebaseBridge.connectCloudNode !== 'function') {
+                    writeTerminalLog('ERROR', 'CLOUD: FirebaseBridge missing connectCloudNode');
+                    return;
                 }
-            } catch(e) {
-                writeTerminalLog("ERROR", "Firebase cross-origin handshaking bottleneck detected.");
+
+                const res = window.FirebaseBridge.connectCloudNode(window.__FIREBASE_CONFIG__ || {});
+                if (!res || !res.bundle) {
+                    writeTerminalLog('ERROR', 'CLOUD: connectCloudNode returned no bundle');
+                    return;
+                }
+
+                writeTerminalLog('SYSTEM', 'CLOUD: connected, reading ledger...');
+
+                // 1) One-time load
+                const cloudState = await res.bundle.readStateFromCloud();
+                const cloudSize = (cloudState && typeof cloudState === 'object') ? Object.keys(cloudState).length : 0;
+                writeTerminalLog('SYSTEM', `CLOUD: read complete. entries=${cloudSize}`);
+
+                if (cloudState && typeof cloudState === 'object') {
+                    localStorage.setItem('dermal_v3_matrix_ledger', JSON.stringify(cloudState));
+                    compileAppInterfaceMatrix();
+                    runMetricsEngine();
+                }
+
+                // 2) Live subscription
+                res.bundle.subscribeStateFromCloud((updated) => {
+                    if (!updated || typeof updated !== 'object') return;
+                    const sz = Object.keys(updated).length;
+                    writeTerminalLog('SYSTEM', `CLOUD: live update applied. entries=${sz}`);
+                    localStorage.setItem('dermal_v3_matrix_ledger', JSON.stringify(updated));
+                    compileAppInterfaceMatrix();
+                    runMetricsEngine();
+                });
+
+                // Keep bundle available for push.
+                window.FirebaseBridge.__bundle = res.bundle;
+            } catch (e) {
+                writeTerminalLog('ERROR', `CLOUD: ${String(e && e.message ? e.message : e)}`);
             }
         }
+
 
         async function dispatchLedgerToFirebase(payload) {
             try {
                 if (window.FirebaseBridge && typeof window.FirebaseBridge.pushUserData === "function") {
-                    await window.FirebaseBridge.pushUserData("dermal_ledger_v3", payload);
+                    // Use the bridge's internal activePath.
+                    // In this project, pushUserData(payloadObj) writes to FirebaseBridge.activePath.
+                    // Passing a 2nd argument is ignored by many bridge implementations.
+                    // (kept for compatibility)
+                
+                        await window.FirebaseBridge.pushUserData(payload);
                 }
             } catch(e) {
                 console.error("Firebase database push transmission interrupted: ", e);
