@@ -1,0 +1,93 @@
+:root {
+    --bg-base: #020106;
+    --neon-cyan: #00f2fe;
+    --neon-purple: #bc00dd;
+    --neon-magenta: #ff007f;
+    --neon-amber: #f59e0b;
+    --glass-panel: rgba(9, 5, 23, 0.78);
+}
+
+body {
+    font-family: 'Plus Jakarta Sans', sans-serif;
+    background-color: var(--bg-base);
+    background-image: 
+        radial-gradient(at 0% 0%, rgba(188, 0, 221, 0.12) 0px, transparent 45%),
+        radial-gradient(at 100% 100%, rgba(0, 242, 254, 0.1) 0px, transparent 45%);
+    color: #f1f5f9;
+    overflow-x: hidden;
+}
+
+/* Typography Overrides */
+.font-code { font-family: 'JetBrains Mono', monospace; }
+.font-hud { font-family: 'Orbitron', sans-serif; }
+
+/* Morphic Interface Glass Layers */
+.hud-glass {
+    background: var(--glass-panel);
+    backdrop-filter: blur(20px);
+    -webkit-backdrop-filter: blur(20px);
+    border: 1px solid rgba(157, 78, 221, 0.16);
+}
+
+/* High Resolution Interactive Card Glows */
+.menu-card {
+    position: relative;
+    background: rgba(12, 8, 33, 0.45);
+    border: 1px solid rgba(255, 255, 255, 0.03);
+    transition: all 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+    overflow: hidden;
+}
+
+.menu-card:hover {
+    transform: translateY(-4px);
+    background: rgba(18, 12, 48, 0.65);
+    box-shadow: 0 0 35px rgba(188, 0, 221, 0.25);
+}
+
+.menu-card-cyan:hover {
+    border-color: var(--neon-cyan);
+    box-shadow: 0 0 35px rgba(0, 242, 254, 0.25);
+}
+
+/* Glowing Checkbox Architecture Selection States */
+.matrix-checkbox:checked + label {
+    background: rgba(0, 242, 254, 0.08);
+    border-color: var(--neon-cyan);
+    color: #ffffff;
+    box-shadow: inset 0 0 12px rgba(0, 242, 254, 0.18), 0 0 20px rgba(0, 242, 254, 0.12);
+}
+
+.matrix-checkbox:checked + label .status-glow {
+    background-color: var(--neon-cyan);
+    box-shadow: 0 0 12px var(--neon-cyan);
+}
+
+/* Application View Management Panel State Animations */
+.view-state { 
+    display: none; 
+}
+.view-state.active { 
+    display: block; 
+    animation: routerPanelSlideIn 0.5s cubic-bezier(0.16, 1, 0.3, 1) forwards; 
+}
+
+@keyframes routerPanelSlideIn {
+    from { opacity: 0; transform: translateY(12px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+
+/* Custom Scrollbar Optimization */
+::-webkit-scrollbar {
+    width: 6px;
+    height: 6px;
+}
+::-webkit-scrollbar-track {
+    background: #020106;
+}
+::-webkit-scrollbar-thumb {
+    background: #251b4f;
+    border-radius: 3px;
+}
+::-webkit-scrollbar-thumb:hover {
+    background: #00f2fe;
+}
