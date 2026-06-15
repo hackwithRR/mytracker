@@ -460,15 +460,24 @@
 
         async function syncLedgerFromFirebase() {
             try {
-                if (!window.FirebaseBridge) return;
+                if (!window.FirebaseBridge) {
+                    writeTerminalLog('ERROR', 'CLOUD: FirebaseBridge missing');
+                    return;
+                }
 
-                // IMPORTANT: FirebaseBridge.connectCloudNode returns a bundle with read/subscribe/push.
-                // hair.html currently expects those methods on FirebaseBridge directly.
                 const res = window.FirebaseBridge.connectCloudNode(window.__FIREBASE_CONFIG__ || {});
-                if (!res || !res.bundle) return;
+                if (!res || !res.bundle) {
+                    writeTerminalLog('ERROR', 'CLOUD: connectCloudNode returned no bundle');
+                    return;
+                }
+
+                writeTerminalLog('SYSTEM', 'CLOUD: connected, reading ledger...');
 
                 // One-time load
                 const cloudState = await res.bundle.readStateFromCloud();
+                const cloudSize = (cloudState && typeof cloudState === 'object') ? Object.keys(cloudState).length : 0;
+                writeTerminalLog('SYSTEM', `CLOUD: read complete. entries=${cloudSize}`);
+
                 if (cloudState && typeof cloudState === 'object') {
                     localStorage.setItem('nexus_v3_matrix_ledger', JSON.stringify(cloudState));
                     compileAppInterfaceMatrix();
@@ -478,6 +487,8 @@
                 // Live sync
                 res.bundle.subscribeStateFromCloud((updated) => {
                     if (!updated || typeof updated !== 'object') return;
+                    const sz = Object.keys(updated).length;
+                    writeTerminalLog('SYSTEM', `CLOUD: live update applied. entries=${sz}`);
                     localStorage.setItem('nexus_v3_matrix_ledger', JSON.stringify(updated));
                     compileAppInterfaceMatrix();
                     runMetricsEngine();
@@ -486,7 +497,7 @@
                 // Also stash bundle methods so toggleMatrixNode can push+read reliably.
                 window.FirebaseBridge.__bundle = res.bundle;
             } catch (e) {
-                // Silent: cloud sync shouldn't break local UI.
+                writeTerminalLog('ERROR', `CLOUD: ${String(e && e.message ? e.message : e)}`);
             }
         }
 
