@@ -513,11 +513,20 @@
             (async () => {
                 try {
                     if (window.FirebaseBridge && typeof window.FirebaseBridge.pushStateToCloud === 'function') {
-                        // Ensure connected (connectCloudNode is cheap-ish but we guard).
                         if (!window.FirebaseBridge._isConnected) {
                             window.FirebaseBridge.connectCloudNode(window.__FIREBASE_CONFIG__ || {});
                         }
+
+                        // 1) Push update
                         await window.FirebaseBridge.pushStateToCloud(state);
+
+                        // 2) Re-read canonical cloud state and apply locally
+                        const canonical = await window.FirebaseBridge.readStateFromCloud();
+                        if (canonical && typeof canonical === 'object') {
+                            localStorage.setItem('nexus_v3_matrix_ledger', JSON.stringify(canonical));
+                            compileAppInterfaceMatrix();
+                            runMetricsEngine();
+                        }
                     }
                 } catch (e) {
                     // ignore
