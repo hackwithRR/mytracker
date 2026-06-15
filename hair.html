@@ -507,10 +507,26 @@
             const checkedState = document.getElementById(nodeId).checked;
             state[nodeId] = checkedState;
             localStorage.setItem("nexus_v3_matrix_ledger", JSON.stringify(state));
-            
+
+            // Push update to Firebase so other devices update.
+            // Best-effort: if Firebase is not connected, we still keep localStorage working.
+            (async () => {
+                try {
+                    if (window.FirebaseBridge && typeof window.FirebaseBridge.pushStateToCloud === 'function') {
+                        // Ensure connected (connectCloudNode is cheap-ish but we guard).
+                        if (!window.FirebaseBridge._isConnected) {
+                            window.FirebaseBridge.connectCloudNode(window.__FIREBASE_CONFIG__ || {});
+                        }
+                        await window.FirebaseBridge.pushStateToCloud(state);
+                    }
+                } catch (e) {
+                    // ignore
+                }
+            })();
+
             const actionString = checkedState ? "CONFIRMED" : "DISENGAGED";
             writeTerminalLog(`ACTION`, `DAY ${String(dayNum).padStart(3, '0')} // TOKEN [${tokenType}] // STATE: ${actionString}`);
-            
+
             runMetricsEngine();
         }
 
