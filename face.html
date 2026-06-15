@@ -1,0 +1,751 @@
+<!DOCTYPE html>
+<html lang="en" class="h-full bg-[#020408] text-slate-100 selection:bg-[#ff007f] selection:text-slate-950">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Bio-Luminescent Dermal Matrix Console v3</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script type="module">
+      import { FirebaseBridge } from './js/firebase-config.js';
+      window.FirebaseBridge = FirebaseBridge;
+    </script>
+
+    <script>
+      // Firebase architectural config mirroring active hair logs
+      window.__FIREBASE_CONFIG__ = {
+        apiKey: "AIzaSyBkTFg9ijG_hBdpCxvniY2axaFzgSD9Ncw",
+        authDomain: "health-tracker-70506.firebaseapp.com",
+        databaseURL: "https://health-tracker-70506-default-rtdb.firebaseio.com",
+        projectId: "health-tracker-70506",
+        storageBucket: "health-tracker-70506.firebasestorage.app",
+        messagingSenderId: "359208173293",
+        appId: "1:359208173293:web:673917d0047c8c913316e4",
+        measurementId: "G-TG2PKYPS52"
+      };
+    </script>
+
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Orbitron:wght@400;600;800;900&family=JetBrains+Mono:wght@400;700&display=swap');
+        .font-hud { font-family: 'Orbitron', sans-serif; }
+        .font-code { font-family: 'JetBrains Mono', sans-serif; }
+        
+        body {
+            height: auto;
+            overflow: auto;
+        }
+
+        .hud-glass {
+            background: linear-gradient(135deg, rgba(10, 7, 28, 0.8) 0%, rgba(4, 2, 14, 0.98) 100%);
+            backdrop-filter: blur(20px);
+            border: 1px solid rgba(255, 255, 255, 0.04);
+        }
+
+        :root {
+            --accent-glow: rgba(255, 0, 127, 0.4);
+            --accent-color: #ff007f;
+        }
+        .theme-cyan {
+            --accent-glow: rgba(0, 242, 254, 0.4);
+            --accent-color: #00f2fe;
+        }
+        .theme-emerald {
+            --accent-glow: rgba(16, 185, 129, 0.4);
+            --accent-color: #10b981;
+        }
+
+        .glow-node-input:checked + div {
+            box-shadow: 0 0 14px var(--accent-glow);
+            border-color: var(--accent-color) !important;
+            background: rgba(0, 0, 0, 0.5) !important;
+        }
+
+        @keyframes radarPulse {
+            0% { transform: scale(0.95); opacity: 0.4; box-shadow: 0 0 0 0 var(--accent-glow); }
+            70% { transform: scale(1); opacity: 1; box-shadow: 0 0 0 8px rgba(255,0,127,0); }
+            100% { transform: scale(0.95); opacity: 0.4; box-shadow: 0 0 0 0 rgba(255,0,127,0); }
+        }
+        .radar-pulse-node { animation: radarPulse 2.5s infinite ease-in-out; }
+
+        .custom-scroll::-webkit-scrollbar { width: 6px; height: 6px; }
+        .custom-scroll::-webkit-scrollbar-track { background: rgba(0, 0, 0, 0.2); }
+        .custom-scroll::-webkit-scrollbar-thumb { background: #0f172a; border-radius: 99px; }
+        .custom-scroll::-webkit-scrollbar-thumb:hover { background: #1e293b; }
+    </style>
+</head>
+<body class="flex flex-col text-xs text-slate-300 font-code bg-[#010204] min-h-screen">
+
+    <header id="topNavbar" class="h-16 flex-shrink-0 hud-glass border-b border-slate-900 px-3 sm:px-6 flex items-center justify-between z-50">
+        <div class="flex items-center gap-3 min-w-0 flex-1"> 
+            <div id="globalRadarIndicator" class="w-2.5 h-2.5 rounded-full bg-[#ff007f] radar-pulse-node flex-shrink-0"></div>
+            <div class="min-w-0">
+                <h1 class="text-sm font-black font-hud tracking-widest text-transparent bg-clip-text bg-gradient-to-r from-white via-slate-200 to-[#ff007f] truncate">BIO-LUMINESCENT DERMAL MATRIX LOG</h1>
+                <p class="hidden sm:block text-[9px] text-slate-500 uppercase font-hud tracking-widest truncate">152-Day (5-Month) High-Resolution Epidermal Turnover &amp; Habit Sync System</p>
+            </div>
+        </div>
+
+        <div class="flex items-center gap-2 flex-shrink-0">
+            <div class="hidden sm:flex items-center gap-1.5 bg-slate-950/80 px-2 py-1 rounded-lg border border-slate-900 max-w-full">
+                <span class="text-[9px] font-hud text-slate-600 font-bold uppercase mr-1">Theme Matrix:</span>
+                <button onclick="shiftThemeAccent('orchid')" class="w-2.5 h-2.5 rounded-full bg-[#ff007f] border border-white/20 hover:scale-125 transition-all"></button>
+                <button onclick="shiftThemeAccent('cyan')" class="w-2.5 h-2.5 rounded-full bg-cyan-400 border border-white/20 hover:scale-125 transition-all"></button>
+                <button onclick="shiftThemeAccent('emerald')" class="w-2.5 h-2.5 rounded-full bg-emerald-500 border border-white/20 hover:scale-125 transition-all"></button>
+            </div>
+
+            <div class="flex bg-slate-950 border border-slate-900 p-0.5 rounded-lg text-[10px] font-hud">
+                <button onclick="window.location.href='index.html'" class="px-2.5 py-1 text-slate-400 hover:text-white transition-all"><i class="bi bi-house-door"></i> Menu</button>
+                <button onclick="exportSystemLedger()" class="px-2.5 py-1 text-slate-400 hover:text-white transition-all"><i class="bi bi-download"></i> Export</button>
+                <label for="importFileEngine" class="px-2.5 py-1 text-slate-400 hover:text-white cursor-pointer transition-all"><i class="bi bi-upload"></i> Import</label>
+                <input type="file" id="importFileEngine" class="hidden" accept=".json" onchange="importSystemLedger(event)">
+            </div>
+        </div>
+    </header>
+
+    <div class="flex flex-col lg:flex-row flex-1 w-full max-w-[1920px] mx-auto">
+        
+        <aside class="w-full lg:w-[350px] xl:w-[410px] flex-shrink-0 lg:h-full min-h-0 border-r-0 lg:border-r border-slate-900/60 bg-[#04060c]/40 p-4 overflow-y-auto custom-scroll space-y-5">
+            
+            <section class="border border-red-950 bg-red-950/10 rounded-xl p-4 space-y-3">
+                <div class="flex items-center gap-2 text-red-400 border-b border-red-900/40 pb-2">
+                    <i class="bi bi-exclamation-octagon-fill text-sm"></i>
+                    <span class="font-hud text-[10px] uppercase font-black tracking-widest">▲ CRITICAL SAFETY DIRECTIVES</span>
+                </div>
+                <div class="space-y-2.5 text-[11px] text-slate-300 leading-relaxed">
+                    <div class="bg-slate-950/60 p-2.5 rounded-lg border border-red-900/30">
+                        <b class="text-[#ff007f] block font-hud text-[9px] uppercase mb-1">1. The Turmeric Ratio Rule:</b>
+                        Incorporate <b>only a single small pinch</b> of Haldi with your Besan. Over-indexing stains the skin yellow. Cleanse residue with a raw-milk cotton pad if stain-bonding forms.
+                    </div>
+                    <div class="bg-slate-950/60 p-2.5 rounded-lg border border-red-900/30">
+                        <b class="text-[#ff007f] block font-hud text-[9px] uppercase mb-1">2. The Desiccation/Exfoliation Trap:</b>
+                        Never allow the AM paste or the weekly Dahi mask to dry completely until cracking. Stripping vital moisture triggers a massive reflex oil surge. Wash off while damp.
+                    </div>
+                    <div class="bg-slate-950/60 p-2.5 rounded-lg border border-red-900/30">
+                        <b class="text-[#ff007f] block font-hud text-[9px] uppercase mb-1">3. Salicylic UV Sensitization Mandate:</b>
+                        Salicylic Acid clears deep pore blockages overnight but leaves cells vulnerable to UV rays. Applying broad-spectrum sunscreen next morning is <b>mandatory</b> if going out.
+                    </div>
+                </div>
+            </section>
+
+            <section class="hud-glass rounded-xl p-4 space-y-3">
+                <div class="flex items-center justify-between">
+                    <span class="font-hud text-[10px] uppercase text-slate-400 font-bold tracking-wide">Dermal Matrix Progress</span>
+                    <span id="lblPercentMetric" class="text-2xl font-black font-hud text-[#ff007f] tracking-tighter">0.0%</span>
+                </div>
+                <div class="h-1 w-full bg-slate-950 border border-slate-900 rounded-full overflow-hidden">
+                    <div id="barPercentMetric" class="h-full bg-gradient-to-r from-[#ff007f] to-cyan-400 transition-all duration-300" style="width: 0%"></div>
+                </div>
+                <div class="grid grid-cols-2 gap-2 text-[10px] font-code text-slate-400 bg-slate-950/60 p-2 rounded-lg border border-slate-900">
+                    <div>Completed Nodes: <span id="statNodeCleared" class="text-cyan-400 font-bold">0</span></div>
+                    <div>Remaining Steps: <span id="statNodePending" class="text-purple-400 font-bold">0</span></div>
+                </div>
+                <div class="h-24 relative pt-1 flex justify-center items-center">
+                    <canvas id="chartMiniTelemetry"></canvas>
+                </div>
+            </section>
+
+            <section class="hud-glass rounded-xl p-4 space-y-2">
+                <span class="font-hud text-[10px] uppercase text-slate-400 font-bold tracking-wide block">Matrix Location Jump Terminal</span>
+                <div class="flex gap-2">
+                    <input type="number" id="txtJumpDay" min="1" max="28" placeholder="Enter Day Index (1-28)..." 
+                           class="flex-1 bg-slate-950 border border-slate-900 rounded-lg px-3 py-1.5 font-code text-[11px] text-slate-200 outline-none focus:border-[#ff007f] transition-all">
+                    <button onclick="executeDayWarpJump()" class="px-3 bg-cyan-950/40 text-cyan-400 border border-cyan-800/50 hover:bg-cyan-900/50 font-hud text-[11px] font-bold uppercase rounded-lg transition-all">Warp</button>
+                </div>
+                <div class="grid grid-cols-4 gap-1 pt-1 font-hud text-[9px] text-center font-bold">
+                    <button onclick="warpToPhaseSection(1)" class="p-1 bg-slate-950 hover:bg-slate-900 border border-slate-900 rounded text-slate-400 hover:text-[#ff007f]">W1</button>
+                    <button onclick="warpToPhaseSection(2)" class="p-1 bg-slate-950 hover:bg-slate-900 border border-slate-900 rounded text-slate-400 hover:text-cyan-400">W2</button>
+                    <button onclick="warpToPhaseSection(3)" class="p-1 bg-slate-950 hover:bg-slate-900 border border-slate-900 rounded text-slate-400 hover:text-fuchsia-400">W3</button>
+                    <button onclick="warpToPhaseSection(4)" class="p-1 bg-slate-950 hover:bg-slate-900 border border-slate-900 rounded text-slate-400 hover:text-emerald-400">W4</button>
+                </div>
+            </section>
+
+            <section class="hud-glass rounded-xl p-4 space-y-3">
+                <span class="font-hud text-[10px] uppercase text-slate-400 font-bold tracking-wide block border-b border-slate-900 pb-1.5">DERMAL MANAGEMENT PROTOCOLS</span>
+                <div class="space-y-3 text-[11px]">
+                    <div class="flex items-start gap-2.5">
+                        <span class="px-1.5 py-0.5 rounded bg-cyan-950 text-cyan-400 font-bold font-hud">AM-C</span>
+                        <div>
+                            <b class="text-slate-200 block font-hud text-[10px]">Besan + Haldi Cleanse</b>
+                            <span class="text-slate-400 text-[10px]">Absorbs accumulated sebum without stripping lipids.</span>
+                        </div>
+                    </div>
+                    <div class="flex items-start gap-2.5">
+                        <span class="px-1.5 py-0.5 rounded bg-blue-950 text-blue-400 font-bold font-hud">AM-B</span>
+                        <div>
+                            <b class="text-slate-200 block font-hud text-[10px]">Oral Clearance (AM)</b>
+                            <span class="text-slate-400 text-[10px]">Morning brush protocol execution. 🪥</span>
+                        </div>
+                    </div>
+                    <div class="flex items-start gap-2.5">
+                        <span class="px-1.5 py-0.5 rounded bg-teal-950 text-teal-400 font-bold font-hud">AM-S</span>
+                        <div>
+                            <b class="text-slate-200 block font-hud text-[10px]">Shield Sunscreen</b>
+                            <span class="text-slate-400 text-[10px]">Apply broad-spectrum cover before outside exposure.</span>
+                        </div>
+                    </div>
+                    <div class="flex items-start gap-2.5">
+                        <span class="px-1.5 py-0.5 rounded bg-purple-950 text-purple-400 font-bold font-hud">MID-S</span>
+                        <div>
+                            <b class="text-slate-200 block font-hud text-[10px]">Daily Refresh Spray</b>
+                            <span class="text-slate-400 text-[10px]">Rice water (matte shine control) or Mint (acne extraction).</span>
+                        </div>
+                    </div>
+                    <div class="flex items-start gap-2.5">
+                        <span class="px-1.5 py-0.5 rounded bg-rose-950 text-rose-400 font-bold font-hud">MID-M</span>
+                        <div>
+                            <b class="text-slate-200 block font-hud text-[10px]">Weekly Yogurt Mask</b>
+                            <span class="text-slate-400 text-[10px]">Besan + Haldi + Dahi (Mon/Wed/Fri intervals).</span>
+                        </div>
+                    </div>
+                    <div class="flex items-start gap-2.5">
+                        <span class="px-1.5 py-0.5 rounded bg-fuchsia-950 text-fuchsia-400 font-bold font-hud">PM-C</span>
+                        <div>
+                            <b class="text-slate-200 block font-hud text-[10px]">Salicylic Wash</b>
+                            <span class="text-slate-400 text-[10px]">Deep pore oil clearing (Strict 60-second massage).</span>
+                        </div>
+                    </div>
+                    <div class="flex items-start gap-2.5">
+                        <span class="px-1.5 py-0.5 rounded bg-violet-950 text-violet-400 font-bold font-hud">PM-L</span>
+                        <div>
+                            <b class="text-slate-200 block font-hud text-[10px]">Moisture Lock</b>
+                            <span class="text-slate-400 text-[10px]">Lightweight hydration signaling sebaceous glands down.</span>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <section class="hud-glass rounded-xl p-4 space-y-2">
+                <div class="flex items-center justify-between border-b border-slate-900 pb-1.5">
+                    <span class="font-hud text-[10px] uppercase text-slate-400 font-bold tracking-wide">Console Activity Log Feed</span>
+                    <span class="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></span>
+                </div>
+                <div id="liveTerminalFeedContainer" class="h-28 overflow-y-auto bg-slate-950 border border-slate-900/80 rounded-lg p-2 font-code text-[10px] text-slate-400 space-y-1 custom-scroll">
+                    <div class="text-slate-600">// Engine initialized. Standby for dermal metric validation...</div>
+                </div>
+            </section>
+        </aside>
+
+        <main id="matrixGridScrollTrack" class="flex-1 w-full min-h-0 overflow-y-auto custom-scroll p-6 space-y-8 bg-[#020306]">
+            
+            <div class="hud-glass p-3 rounded-xl border border-slate-900/80 flex flex-col sm:flex-row items-center justify-between gap-3 sticky top-0 z-30">
+                <div class="flex items-center gap-2">
+                    <span class="w-1.5 h-1.5 bg-[#ff007f] rounded-sm"></span>
+                    <span class="font-hud text-[10px] uppercase font-black text-slate-400 tracking-wider">Dynamic Token Matrix Filters:</span>
+                </div>
+                <div class="flex flex-wrap bg-slate-950 p-0.5 border border-slate-900 rounded-lg font-hud text-[9px] font-bold gap-0.5">
+                    <button onclick="applyTimelineFilter('all')" id="btnFilter-all" class="px-2.5 py-1.5 rounded-md bg-slate-900 text-[var(--accent-color,#ff007f)] border border-slate-800 transition-all uppercase">All Operations</button>
+                    <button onclick="applyTimelineFilter('AM-C')" id="btnFilter-AM-C" class="px-2.5 py-1.5 rounded-md text-slate-400 hover:text-white transition-all uppercase">AM-Cleanse</button>
+                    <button onclick="applyTimelineFilter('MID-S')" id="btnFilter-MID-S" class="px-2.5 py-1.5 rounded-md text-slate-400 hover:text-white transition-all uppercase">MID-Spray</button>
+                    <button onclick="applyTimelineFilter('MID-M')" id="btnFilter-MID-M" class="px-2.5 py-1.5 rounded-md text-slate-400 hover:text-white transition-all uppercase">MID-Mask</button>
+                    <button onclick="applyTimelineFilter('PM-C')" id="btnFilter-PM-C" class="px-2.5 py-1.5 rounded-md text-slate-400 hover:text-white transition-all uppercase">PM-Wash</button>
+                    <button onclick="applyTimelineFilter('BRUSH')" id="btnFilter-BRUSH" class="px-2.5 py-1.5 rounded-md text-slate-400 hover:text-white transition-all uppercase">🪥 Oral</button>
+                </div>
+            </div>
+
+            <div id="masterProgrammaticGridRoot" class="space-y-8"></div>
+        </main>
+    </div>
+
+    <script>
+        // Mapping a comprehensive 28-day skin renewal matrix analog
+        const globalMatrixDataset = {
+            1: { phase: "WEEK 1: REGULATING ACID RESET (DAYS 1-7)", target: "Clear excess sebum mantle baseline, eliminate microbial build-up, protect newly exposed surfaces.", logQuote: "Day oil layers are normalizing. Deep contact chemical operations are clearing micro blockages safely.", length: 7, tag: "w1", color: "from-[#ff007f]/10 to-transparent",
+                 days: {
+                    1: ["AM-C","AM-B","AM-S","MID-S","PM-C","PM-B","PM-L","MID-M"], 
+                    2: ["AM-C","AM-B","AM-S","MID-S","PM-C","PM-B","PM-L"], 
+                    3: ["AM-C","AM-B","AM-S","MID-S","PM-C","PM-B","PM-L","MID-M"], 
+                    4: ["AM-C","AM-B","AM-S","MID-S","PM-C","PM-B","PM-L"], 
+                    5: ["AM-C","AM-B","AM-S","MID-S","PM-C","PM-B","PM-L","MID-M"], 
+                    6: ["AM-C","AM-B","AM-S","MID-S","PM-C","PM-B","PM-L"],
+                    7: ["AM-C","AM-B","AM-S","MID-S","PM-C","PM-B","PM-L"]
+                 }
+            },
+            2: { phase: "WEEK 2: EPIDERMAL EQUILIBRIUM (DAYS 8-14)", target: "Balance surface sebum production velocities. Decrease inflammation and trace redness patterns.", logQuote: "Oil production rate is lowering. Barrier structural thickness is scaling effectively.", length: 7, tag: "w2", color: "from-cyan-500/10 to-transparent",
+                 days: {
+                    8: ["AM-C","AM-B","AM-S","MID-S","PM-C","PM-B","PM-L","MID-M"], 
+                    9: ["AM-C","AM-B","AM-S","MID-S","PM-C","PM-B","PM-L"], 
+                    10: ["AM-C","AM-B","AM-S","MID-S","PM-C","PM-B","PM-L","MID-M"], 
+                    11: ["AM-C","AM-B","AM-S","MID-S","PM-C","PM-B","PM-L"], 
+                    12: ["AM-C","AM-B","AM-S","MID-S","PM-C","PM-B","PM-L","MID-M"], 
+                    13: ["AM-C","AM-B","AM-S","MID-S","PM-C","PM-B","PM-L"],
+                    14: ["AM-C","AM-B","AM-S","MID-S","PM-C","PM-B","PM-L"]
+                 }
+            },
+            3: { phase: "WEEK 3: DEEP CELLULAR PURIFICATION (DAYS 15-21)", target: "Accelerate dead cell turnover while using hydration layers to suppress excessive reactive breakouts.", logQuote: "Pore walls are firming up. High contact time on active washes yields peak delivery.", length: 7, tag: "w3", color: "from-fuchsia-500/10 to-transparent",
+                 days: {
+                    15: ["AM-C","AM-B","AM-S","MID-S","PM-C","PM-B","PM-L","MID-M"], 
+                    16: ["AM-C","AM-B","AM-S","MID-S","PM-C","PM-B","PM-L"], 
+                    17: ["AM-C","AM-B","AM-S","MID-S","PM-C","PM-B","PM-L","MID-M"], 
+                    18: ["AM-C","AM-B","AM-S","MID-S","PM-C","PM-B","PM-L"], 
+                    19: ["AM-C","AM-B","AM-S","MID-S","PM-C","PM-B","PM-L","MID-M"], 
+                    20: ["AM-C","AM-B","AM-S","MID-S","PM-C","PM-B","PM-L"],
+                    21: ["AM-C","AM-B","AM-S","MID-S","PM-C","PM-B","PM-L"]
+                 }
+            },
+            4: { phase: "WEEK 4: MATRIX BARRIER LOCKING (DAYS 22-28)", target: "Complete structural protection and stabilization of lipid mantles. Prevent moisture leakage vectors.", logQuote: "The 28-day skin generation sequence is verified. Clean barrier health is established.", length: 7, tag: "w4", color: "from-emerald-500/10 to-transparent",
+                 days: {
+                    22: ["AM-C","AM-B","AM-S","MID-S","PM-C","PM-B","PM-L","MID-M"], 
+                    23: ["AM-C","AM-B","AM-S","MID-S","PM-C","PM-B","PM-L"], 
+                    24: ["AM-C","AM-B","AM-S","MID-S","PM-C","PM-B","PM-L","MID-M"], 
+                    25: ["AM-C","AM-B","AM-S","MID-S","PM-C","PM-B","PM-L"], 
+                    26: ["AM-C","AM-B","AM-S","MID-S","PM-C","PM-B","PM-L","MID-M"], 
+                    27: ["AM-C","AM-B","AM-S","MID-S","PM-C","PM-B","PM-L"],
+                    28: ["AM-C","AM-B","AM-S","MID-S","PM-C","PM-B","PM-L"]
+                 }
+            },
+            5: { phase: "MONTH 5: MATRIX SEAL RE-CALIBRATION (DAYS 29-35)", target: "Sustain barrier resilience while repeating core dermal ops to prevent regression.", logQuote: "Barrier confidence remains stable. Consistent dahi masking and salicylic wash cycles maintain pore clarity.", length: 7, tag: "w5", color: "from-emerald-500/10 to-transparent",
+                 days: {
+                    29: ["AM-C","AM-B","AM-S","MID-S","PM-C","PM-B","PM-L","MID-M"],
+                    30: ["AM-C","AM-B","AM-S","MID-S","PM-C","PM-B","PM-L"],
+                    31: ["AM-C","AM-B","AM-S","MID-S","PM-C","PM-B","PM-L","MID-M"],
+                    32: ["AM-C","AM-B","AM-S","MID-S","PM-C","PM-B","PM-L"],
+                    33: ["AM-C","AM-B","AM-S","MID-S","PM-C","PM-B","PM-L","MID-M"],
+                    34: ["AM-C","AM-B","AM-S","MID-S","PM-C","PM-B","PM-L"],
+                    35: ["AM-C","AM-B","AM-S","MID-S","PM-C","PM-B","PM-L","MID-M"],
+                    36: ["AM-C","AM-B","AM-S","MID-S","PM-C","PM-B","PM-L"],
+                    37: ["AM-C","AM-B","AM-S","MID-S","PM-C","PM-B","PM-L","MID-M"],
+                    38: ["AM-C","AM-B","AM-S","MID-S","PM-C","PM-B","PM-L"],
+                    39: ["AM-C","AM-B","AM-S","MID-S","PM-C","PM-B","PM-L","MID-M"],
+                    40: ["AM-C","AM-B","AM-S","MID-S","PM-C","PM-B","PM-L"],
+                    41: ["AM-C","AM-B","AM-S","MID-S","PM-C","PM-B","PM-L","MID-M"],
+                    42: ["AM-C","AM-B","AM-S","MID-S","PM-C","PM-B","PM-L"],
+                    43: ["AM-C","AM-B","AM-S","MID-S","PM-C","PM-B","PM-L","MID-M"],
+                    44: ["AM-C","AM-B","AM-S","MID-S","PM-C","PM-B","PM-L"],
+                    45: ["AM-C","AM-B","AM-S","MID-S","PM-C","PM-B","PM-L","MID-M"],
+                    46: ["AM-C","AM-B","AM-S","MID-S","PM-C","PM-B","PM-L"],
+                    47: ["AM-C","AM-B","AM-S","MID-S","PM-C","PM-B","PM-L","MID-M"],
+                    48: ["AM-C","AM-B","AM-S","MID-S","PM-C","PM-B","PM-L"],
+                    49: ["AM-C","AM-B","AM-S","MID-S","PM-C","PM-B","PM-L","MID-M"],
+                    50: ["AM-C","AM-B","AM-S","MID-S","PM-C","PM-B","PM-L"],
+                    51: ["AM-C","AM-B","AM-S","MID-S","PM-C","PM-B","PM-L","MID-M"],
+                    52: ["AM-C","AM-B","AM-S","MID-S","PM-C","PM-B","PM-L"],
+                    53: ["AM-C","AM-B","AM-S","MID-S","PM-C","PM-B","PM-L","MID-M"],
+                    54: ["AM-C","AM-B","AM-S","MID-S","PM-C","PM-B","PM-L"],
+                    55: ["AM-C","AM-B","AM-S","MID-S","PM-C","PM-B","PM-L","MID-M"],
+                    56: ["AM-C","AM-B","AM-S","MID-S","PM-C","PM-B","PM-L"],
+                    57: ["AM-C","AM-B","AM-S","MID-S","PM-C","PM-B","PM-L","MID-M"],
+                    58: ["AM-C","AM-B","AM-S","MID-S","PM-C","PM-B","PM-L"],
+                    59: ["AM-C","AM-B","AM-S","MID-S","PM-C","PM-B","PM-L","MID-M"],
+                    60: ["AM-C","AM-B","AM-S","MID-S","PM-C","PM-B","PM-L"],
+                    61: ["AM-C","AM-B","AM-S","MID-S","PM-C","PM-B","PM-L","MID-M"],
+                    62: ["AM-C","AM-B","AM-S","MID-S","PM-C","PM-B","PM-L"],
+                    63: ["AM-C","AM-B","AM-S","MID-S","PM-C","PM-B","PM-L","MID-M"],
+                    64: ["AM-C","AM-B","AM-S","MID-S","PM-C","PM-B","PM-L"],
+                    65: ["AM-C","AM-B","AM-S","MID-S","PM-C","PM-B","PM-L","MID-M"],
+                    66: ["AM-C","AM-B","AM-S","MID-S","PM-C","PM-B","PM-L"],
+                    67: ["AM-C","AM-B","AM-S","MID-S","PM-C","PM-B","PM-L","MID-M"],
+                    68: ["AM-C","AM-B","AM-S","MID-S","PM-C","PM-B","PM-L"],
+                    69: ["AM-C","AM-B","AM-S","MID-S","PM-C","PM-B","PM-L","MID-M"],
+                    70: ["AM-C","AM-B","AM-S","MID-S","PM-C","PM-B","PM-L"],
+                    71: ["AM-C","AM-B","AM-S","MID-S","PM-C","PM-B","PM-L","MID-M"],
+                    72: ["AM-C","AM-B","AM-S","MID-S","PM-C","PM-B","PM-L"],
+                    73: ["AM-C","AM-B","AM-S","MID-S","PM-C","PM-B","PM-L","MID-M"],
+                    74: ["AM-C","AM-B","AM-S","MID-S","PM-C","PM-B","PM-L"],
+                    75: ["AM-C","AM-B","AM-S","MID-S","PM-C","PM-B","PM-L","MID-M"],
+                    76: ["AM-C","AM-B","AM-S","MID-S","PM-C","PM-B","PM-L"],
+                    77: ["AM-C","AM-B","AM-S","MID-S","PM-C","PM-B","PM-L","MID-M"],
+                    78: ["AM-C","AM-B","AM-S","MID-S","PM-C","PM-B","PM-L"],
+                    79: ["AM-C","AM-B","AM-S","MID-S","PM-C","PM-B","PM-L","MID-M"],
+                    80: ["AM-C","AM-B","AM-S","MID-S","PM-C","PM-B","PM-L"],
+                    81: ["AM-C","AM-B","AM-S","MID-S","PM-C","PM-B","PM-L","MID-M"],
+                    82: ["AM-C","AM-B","AM-S","MID-S","PM-C","PM-B","PM-L"],
+                    83: ["AM-C","AM-B","AM-S","MID-S","PM-C","PM-B","PM-L","MID-M"],
+                    84: ["AM-C","AM-B","AM-S","MID-S","PM-C","PM-B","PM-L"],
+                    85: ["AM-C","AM-B","AM-S","MID-S","PM-C","PM-B","PM-L","MID-M"],
+                    86: ["AM-C","AM-B","AM-S","MID-S","PM-C","PM-B","PM-L"],
+                    87: ["AM-C","AM-B","AM-S","MID-S","PM-C","PM-B","PM-L","MID-M"],
+                    88: ["AM-C","AM-B","AM-S","MID-S","PM-C","PM-B","PM-L"],
+                    89: ["AM-C","AM-B","AM-S","MID-S","PM-C","PM-B","PM-L","MID-M"],
+                    90: ["AM-C","AM-B","AM-S","MID-S","PM-C","PM-B","PM-L"],
+                    91: ["AM-C","AM-B","AM-S","MID-S","PM-C","PM-B","PM-L","MID-M"],
+                    92: ["AM-C","AM-B","AM-S","MID-S","PM-C","PM-B","PM-L"],
+                    93: ["AM-C","AM-B","AM-S","MID-S","PM-C","PM-B","PM-L","MID-M"],
+                    94: ["AM-C","AM-B","AM-S","MID-S","PM-C","PM-B","PM-L"],
+                    95: ["AM-C","AM-B","AM-S","MID-S","PM-C","PM-B","PM-L","MID-M"],
+                    96: ["AM-C","AM-B","AM-S","MID-S","PM-C","PM-B","PM-L"],
+                    97: ["AM-C","AM-B","AM-S","MID-S","PM-C","PM-B","PM-L","MID-M"],
+                    98: ["AM-C","AM-B","AM-S","MID-S","PM-C","PM-B","PM-L"],
+                    99: ["AM-C","AM-B","AM-S","MID-S","PM-C","PM-B","PM-L","MID-M"],
+                    100: ["AM-C","AM-B","AM-S","MID-S","PM-C","PM-B","PM-L"],
+                    101: ["AM-C","AM-B","AM-S","MID-S","PM-C","PM-B","PM-L","MID-M"],
+                    102: ["AM-C","AM-B","AM-S","MID-S","PM-C","PM-B","PM-L"],
+                    103: ["AM-C","AM-B","AM-S","MID-S","PM-C","PM-B","PM-L","MID-M"],
+                    104: ["AM-C","AM-B","AM-S","MID-S","PM-C","PM-B","PM-L"],
+                    105: ["AM-C","AM-B","AM-S","MID-S","PM-C","PM-B","PM-L","MID-M"],
+                    106: ["AM-C","AM-B","AM-S","MID-S","PM-C","PM-B","PM-L"],
+                    107: ["AM-C","AM-B","AM-S","MID-S","PM-C","PM-B","PM-L","MID-M"],
+                    108: ["AM-C","AM-B","AM-S","MID-S","PM-C","PM-B","PM-L"],
+                    109: ["AM-C","AM-B","AM-S","MID-S","PM-C","PM-B","PM-L","MID-M"],
+                    110: ["AM-C","AM-B","AM-S","MID-S","PM-C","PM-B","PM-L"],
+                    111: ["AM-C","AM-B","AM-S","MID-S","PM-C","PM-B","PM-L","MID-M"],
+                    112: ["AM-C","AM-B","AM-S","MID-S","PM-C","PM-B","PM-L"],
+                    113: ["AM-C","AM-B","AM-S","MID-S","PM-C","PM-B","PM-L","MID-M"],
+                    114: ["AM-C","AM-B","AM-S","MID-S","PM-C","PM-B","PM-L"],
+                    115: ["AM-C","AM-B","AM-S","MID-S","PM-C","PM-B","PM-L","MID-M"],
+                    116: ["AM-C","AM-B","AM-S","MID-S","PM-C","PM-B","PM-L"],
+                    117: ["AM-C","AM-B","AM-S","MID-S","PM-C","PM-B","PM-L","MID-M"],
+                    118: ["AM-C","AM-B","AM-S","MID-S","PM-C","PM-B","PM-L"],
+                    119: ["AM-C","AM-B","AM-S","MID-S","PM-C","PM-B","PM-L","MID-M"],
+                    120: ["AM-C","AM-B","AM-S","MID-S","PM-C","PM-B","PM-L"],
+                    121: ["AM-C","AM-B","AM-S","MID-S","PM-C","PM-B","PM-L","MID-M"],
+                    122: ["AM-C","AM-B","AM-S","MID-S","PM-C","PM-B","PM-L"],
+                    123: ["AM-C","AM-B","AM-S","MID-S","PM-C","PM-B","PM-L","MID-M"],
+                    124: ["AM-C","AM-B","AM-S","MID-S","PM-C","PM-B","PM-L"],
+                    125: ["AM-C","AM-B","AM-S","MID-S","PM-C","PM-B","PM-L","MID-M"],
+                    126: ["AM-C","AM-B","AM-S","MID-S","PM-C","PM-B","PM-L"],
+                    127: ["AM-C","AM-B","AM-S","MID-S","PM-C","PM-B","PM-L","MID-M"],
+                    128: ["AM-C","AM-B","AM-S","MID-S","PM-C","PM-B","PM-L"],
+                    129: ["AM-C","AM-B","AM-S","MID-S","PM-C","PM-B","PM-L","MID-M"],
+                    130: ["AM-C","AM-B","AM-S","MID-S","PM-C","PM-B","PM-L"],
+                    131: ["AM-C","AM-B","AM-S","MID-S","PM-C","PM-B","PM-L","MID-M"],
+                    132: ["AM-C","AM-B","AM-S","MID-S","PM-C","PM-B","PM-L"],
+                    133: ["AM-C","AM-B","AM-S","MID-S","PM-C","PM-B","PM-L","MID-M"],
+                    134: ["AM-C","AM-B","AM-S","MID-S","PM-C","PM-B","PM-L"],
+                    135: ["AM-C","AM-B","AM-S","MID-S","PM-C","PM-B","PM-L","MID-M"],
+                    136: ["AM-C","AM-B","AM-S","MID-S","PM-C","PM-B","PM-L"],
+                    137: ["AM-C","AM-B","AM-S","MID-S","PM-C","PM-B","PM-L","MID-M"],
+                    138: ["AM-C","AM-B","AM-S","MID-S","PM-C","PM-B","PM-L"],
+                    139: ["AM-C","AM-B","AM-S","MID-S","PM-C","PM-B","PM-L","MID-M"],
+                    140: ["AM-C","AM-B","AM-S","MID-S","PM-C","PM-B","PM-L"],
+                    141: ["AM-C","AM-B","AM-S","MID-S","PM-C","PM-B","PM-L","MID-M"],
+                    142: ["AM-C","AM-B","AM-S","MID-S","PM-C","PM-B","PM-L"],
+                    143: ["AM-C","AM-B","AM-S","MID-S","PM-C","PM-B","PM-L","MID-M"],
+                    144: ["AM-C","AM-B","AM-S","MID-S","PM-C","PM-B","PM-L"],
+                    145: ["AM-C","AM-B","AM-S","MID-S","PM-C","PM-B","PM-L","MID-M"],
+                    146: ["AM-C","AM-B","AM-S","MID-S","PM-C","PM-B","PM-L"],
+                    147: ["AM-C","AM-B","AM-S","MID-S","PM-C","PM-B","PM-L","MID-M"],
+                    148: ["AM-C","AM-B","AM-S","MID-S","PM-C","PM-B","PM-L"],
+                    149: ["AM-C","AM-B","AM-S","MID-S","PM-C","PM-B","PM-L","MID-M"],
+                    150: ["AM-C","AM-B","AM-S","MID-S","PM-C","PM-B","PM-L"],
+                    151: ["AM-C","AM-B","AM-S","MID-S","PM-C","PM-B","PM-L","MID-M"],
+                    152: ["AM-C","AM-B","AM-S","MID-S","PM-C","PM-B","PM-L"]
+                 }
+            }
+        };
+
+        const descriptiveTokenMap = { 
+            "AM-C": "Besan Wash", "AM-B": "Brush AM 🪥", "AM-S": "Sunscreen", 
+            "MID-S": "Spray Mist", "MID-M": "Dahi Mask", 
+            "PM-C": "Salicylic Wash", "PM-B": "Brush PM 🪥", "PM-L": "Moisturizer" 
+        };
+        
+        let activeSelectionFilter = 'all';
+        let chartTelemetryObject = null;
+
+        document.addEventListener("DOMContentLoaded", () => {
+            compileAppInterfaceMatrix();
+            runMetricsEngine();
+            syncLedgerFromFirebase();
+        });
+
+        function shiftThemeAccent(themeToken) {
+            const documentElement = document.documentElement;
+            documentElement.className = "h-full bg-[#020408] text-slate-100 selection:bg-cyan-500 selection:text-slate-950";
+            const radar = document.getElementById("globalRadarIndicator");
+            
+            if (themeToken === 'orchid') {
+                document.documentElement.style.setProperty('--accent-color', '#ff007f');
+                document.documentElement.style.setProperty('--accent-glow', 'rgba(255, 0, 127, 0.4)');
+                radar.className = "w-2.5 h-2.5 rounded-full bg-[#ff007f] radar-pulse-node";
+            } else if (themeToken === 'cyan') {
+                documentElement.classList.add('theme-cyan');
+                document.documentElement.style.setProperty('--accent-color', '#00f2fe');
+                document.documentElement.style.setProperty('--accent-glow', 'rgba(0, 242, 254, 0.4)');
+                radar.className = "w-2.5 h-2.5 rounded-full bg-cyan-400 radar-pulse-node";
+            } else if (themeToken === 'emerald') {
+                documentElement.classList.add('theme-emerald');
+                document.documentElement.style.setProperty('--accent-color', '#10b981');
+                document.documentElement.style.setProperty('--accent-glow', 'rgba(16, 185, 129, 0.4)');
+                radar.className = "w-2.5 h-2.5 rounded-full bg-emerald-500 radar-pulse-node";
+            }
+            writeTerminalLog(`SYSTEM`, `THEME ACCENT RE-ROUTED TO MOD: [${themeToken.toUpperCase()}]`);
+            for (let i = 1; i <= 28; i++) { colorizeCardFrame(i); }
+        }
+
+        function applyTimelineFilter(tokenField) {
+            activeSelectionFilter = tokenField;
+            ['all', 'AM-C', 'MID-S', 'MID-M', 'PM-C', 'BRUSH'].forEach(x => {
+                const btn = document.getElementById(`btnFilter-${x}`);
+                if (btn) btn.className = "px-2.5 py-1.5 rounded-md text-slate-400 hover:text-white transition-all uppercase";
+            });
+            const activeBtn = document.getElementById(`btnFilter-${tokenField}`);
+            if (activeBtn) activeBtn.className = "px-2.5 py-1.5 rounded-md bg-slate-900 text-[var(--accent-color,#ff007f)] border border-slate-800 transition-all uppercase";
+            compileAppInterfaceMatrix();
+        }
+
+        function compileAppInterfaceMatrix() {
+            const root = document.getElementById("masterProgrammaticGridRoot");
+            let cache = loadStateLedger();
+            let compiledHtml = '';
+
+            Object.keys(globalMatrixDataset).forEach(phaseKey => {
+                const meta = globalMatrixDataset[phaseKey];
+                let internalCardsHtml = '';
+
+                Object.keys(meta.days).forEach(dayNum => {
+                    const tokens = meta.days[dayNum];
+
+                    // Smart evaluation checking for standard filter match or grouping dental parameters
+                    const matchesFilter = tokens.some(tk => {
+                        if (activeSelectionFilter === 'all') return true;
+                        if (activeSelectionFilter === 'BRUSH') return tk === 'AM-B' || tk === 'PM-B';
+                        return tk === activeSelectionFilter;
+                    });
+
+                    if (!matchesFilter) return;
+
+                    let elementsHtml = '';
+                    tokens.forEach(tk => {
+                        if (activeSelectionFilter !== 'all' && activeSelectionFilter !== 'BRUSH' && tk !== activeSelectionFilter) return;
+                        if (activeSelectionFilter === 'BRUSH' && tk !== 'AM-B' && tk !== 'PM-B') return;
+
+                        const uniqueNodeId = `dermal-ph${phaseKey}-d${dayNum}-${tk}`;
+                        const checkedAttr = cache[uniqueNodeId] ? 'checked' : '';
+                        const elementColor = (tk.startsWith('AM') || tk === 'PM-L') ? 'text-cyan-400' : 'text-[#ff007f]';
+
+                        elementsHtml += `
+                            <label class="relative flex items-center gap-1.5 cursor-pointer group select-none">
+                                <input type="checkbox" id="${uniqueNodeId}" ${checkedAttr} 
+                                       onchange="toggleMatrixNode('${uniqueNodeId}', ${dayNum}, '${tk}')"
+                                       class="glow-node-input absolute opacity-0 w-0 h-0 peer">
+                                <div class="w-full flex items-center justify-between p-1.5 rounded bg-slate-950/80 border border-slate-900/60 group-hover:border-slate-800 transition-all peer-checked:border-slate-700 ${tk === 'MID-M' ? 'relative z-[999]' : (tk === 'PM-C' ? 'relative z-[10]' : 'relative z-[5]')}">
+                                    <span class="text-[10px] text-slate-400 peer-checked:text-white"><b class="${elementColor}">[${tk}]</b> ${descriptiveTokenMap[tk]}</span>
+                                    <i class="bi bi-shield-check text-transparent peer-checked:text-emerald-400 text-[10px]"></i>
+                                </div>
+                            </label>
+                        `;
+                    });
+
+                    let noticeIndicator = '';
+                    if (tokens.includes('MID-M')) {
+                        noticeIndicator = `<div class="mt-1.5 text-[8px] font-hud font-bold text-[#ff007f] bg-rose-950/20 border border-rose-900/30 py-0.5 rounded text-center tracking-tighter uppercase"><i class="bi bi-droplet-half"></i> Active Yogurt Mask</div>`;
+                    }
+
+                    internalCardsHtml += `
+                        <div id="daycard-index-${dayNum}" class="hud-glass rounded-xl p-3 border border-slate-900 flex flex-col justify-between hover:border-slate-800 transition-all">
+                            <div>
+                                <div class="flex items-center justify-between border-b border-slate-900 pb-1 mb-2">
+                                    <span class="font-hud font-black text-white text-[11px]">DAY ${String(dayNum).padStart(3, '0')}</span>
+                                    <span class="text-[9px] font-code text-slate-600 font-bold">W0${phaseKey}</span>
+                                </div>
+                                <div class="grid grid-cols-1 gap-1">${elementsHtml}</div>
+                            </div>
+                            ${noticeIndicator}
+                        </div>
+                    `;
+                });
+
+                if (!internalCardsHtml) return;
+
+                compiledHtml += `
+                    <section id="anchor-phase-section-${phaseKey}" class="hud-glass p-5 rounded-xl border border-slate-900 space-y-4 bg-gradient-to-b ${meta.color}">
+                        <div class="flex flex-col md:flex-row md:items-center justify-between gap-2 border-b border-slate-900/80 pb-3">
+                            <div>
+                                <h3 class="text-xs font-bold font-hud text-slate-100 uppercase tracking-widest flex items-center gap-2">
+                                    <span class="w-1.5 h-1.5 rounded-sm bg-gradient-to-r from-[#ff007f] to-cyan-400"></span>${meta.phase}
+                                </h3>
+                                <p class="text-[10px] text-cyan-400 font-code mt-1"><b class="text-slate-400 uppercase font-hud text-[9px]">Target Area:</b> ${meta.target}</p>
+                            </div>
+                        </div>
+                        
+                        <div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-3">${internalCardsHtml}</div>
+                        
+                        <div class="mt-2 bg-slate-950/60 rounded-xl p-3 border border-slate-900/80 text-slate-400 italic text-[10px] flex items-center gap-2">
+                            <i class="bi bi-chat-left-quote-fill text-purple-400 text-xs"></i>
+                            <span>"${meta.logQuote}"</span>
+                        </div>
+                    </section>
+                `;
+            });
+
+            root.innerHTML = compiledHtml || `<div class="hud-glass p-8 rounded-xl border border-slate-900 text-center text-slate-500 font-hud tracking-widest uppercase">No matching operational fields detected in viewport.</div>`;
+            
+            for (let i = 1; i <= 28; i++) { colorizeCardFrame(i); }
+        }
+
+        function loadStateLedger() {
+            let data = localStorage.getItem("dermal_v3_matrix_ledger");
+            return data ? JSON.parse(data) : {};
+        }
+
+        async function syncLedgerFromFirebase() {
+            try {
+                if (window.FirebaseBridge && typeof window.FirebaseBridge.pullUserData === "function") {
+                    writeTerminalLog("FIREBASE", "Initializing secure synchronization stream...");
+                    let cloudData = await window.FirebaseBridge.pullUserData("dermal_ledger_v3");
+                    if (cloudData) {
+                        localStorage.setItem("dermal_v3_matrix_ledger", JSON.stringify(cloudData));
+                        compileAppInterfaceMatrix();
+                        runMetricsEngine();
+                        writeTerminalLog("FIREBASE", "Cloud telemetry payload integrated perfectly.");
+                    }
+                }
+            } catch(e) {
+                writeTerminalLog("ERROR", "Firebase cross-origin handshaking bottleneck detected.");
+            }
+        }
+
+        async function dispatchLedgerToFirebase(payload) {
+            try {
+                if (window.FirebaseBridge && typeof window.FirebaseBridge.pushUserData === "function") {
+                    await window.FirebaseBridge.pushUserData("dermal_ledger_v3", payload);
+                }
+            } catch(e) {
+                console.error("Firebase database push transmission interrupted: ", e);
+            }
+        }
+
+        function colorizeCardFrame(dayIndex) {
+            const card = document.getElementById(`daycard-index-${dayIndex}`);
+            if (!card) return;
+            const inputs = card.querySelectorAll('input[type="checkbox"]');
+            const checked = card.querySelectorAll('input[type="checkbox"]:checked');
+
+            if (inputs.length === checked.length && inputs.length > 0) {
+                card.style.borderColor = "var(--accent-color, #ff007f)";
+                card.style.background = "rgba(255, 0, 127, 0.02)";
+            } else {
+                card.style.borderColor = "";
+                card.style.background = "";
+            }
+        }
+
+        function toggleMatrixNode(nodeUuid, dayIndex, elementToken) {
+            let cache = loadStateLedger();
+            const state = document.getElementById(nodeUuid).checked;
+            cache[nodeUuid] = state;
+            localStorage.setItem("dermal_v3_matrix_ledger", JSON.stringify(cache));
+
+            colorizeCardFrame(dayIndex);
+            writeTerminalLog("ACTION", `DAY ${String(dayIndex).padStart(3, '0')} // NODE [${elementToken}] // CONFIRMATION STATUS: ${state ? "SECURED" : "PURGED"}`);
+            
+            runMetricsEngine();
+            dispatchLedgerToFirebase(cache);
+        }
+
+        function writeTerminalLog(type, message) {
+            const container = document.getElementById("liveTerminalFeedContainer");
+            if (!container) return;
+            const stamp = new Date().toLocaleTimeString();
+            const logLine = document.createElement("div");
+            logLine.className = type === 'ACTION' ? "text-cyan-400" : (type === 'ERROR' ? "text-rose-400" : "text-[#ff007f]");
+            logLine.innerHTML = `<span class="text-slate-600">[${stamp}]</span> <b class="font-hud text-[9px]">[${type}]</b> ${message}`;
+            container.appendChild(logLine);
+            container.scrollTop = container.scrollHeight;
+        }
+
+        function executeDayWarpJump() {
+            const targetField = document.getElementById("txtJumpDay");
+            const value = parseInt(targetField.value);
+            if (!value || value < 1 || value > 28) {
+                writeTerminalLog("ERROR", "Vector location input out of index boundaries (1-28).");
+                return;
+            }
+            const cardElement = document.getElementById(`daycard-index-${value}`);
+            if (cardElement) {
+                cardElement.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                const currentBorder = cardElement.style.borderColor;
+                cardElement.style.borderColor = "var(--accent-color, #ff007f)";
+                setTimeout(() => { cardElement.style.borderColor = currentBorder; colorizeCardFrame(value); }, 2000);
+                writeTerminalLog("WARP", `Viewport focus realigned onto cell coordinate node day: ${value}`);
+            }
+        }
+
+        function warpToPhaseSection(weekIndex) {
+            const anchor = document.getElementById(`anchor-phase-section-${weekIndex}`);
+            if (anchor) {
+                anchor.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                writeTerminalLog("WARP", `Jumped to structural execution week: 0${weekIndex}`);
+            }
+        }
+
+        function runMetricsEngine() {
+            let total = 0;
+            let cleared = 0;
+            const ledger = loadStateLedger();
+
+            Object.keys(globalMatrixDataset).forEach(phaseKey => {
+                Object.keys(globalMatrixDataset[phaseKey].days).forEach(dayNum => {
+                    globalMatrixDataset[phaseKey].days[dayNum].forEach(tk => {
+                        total++;
+                        const id = `dermal-ph${phaseKey}-d${dayNum}-${tk}`;
+                        if (ledger[id]) cleared++;
+                    });
+                });
+            });
+
+            const pending = total - cleared;
+            const percent = total > 0 ? ((cleared / total) * 100).toFixed(1) : "0.0";
+
+            document.getElementById("lblPercentMetric").innerText = `${percent}%`;
+            document.getElementById("barPercentMetric").style.width = `${percent}%`;
+            document.getElementById("statNodeCleared").innerText = cleared;
+            document.getElementById("statNodePending").innerText = pending;
+
+            updateTelemetryChart(cleared, pending);
+        }
+
+        function updateTelemetryChart(cleared, pending) {
+            const ctx = document.getElementById('chartMiniTelemetry').getContext('2d');
+            const activeColor = getComputedStyle(document.documentElement).getPropertyValue('--accent-color').trim() || '#ff007f';
+            
+            if (chartTelemetryObject) {
+                chartTelemetryObject.data.datasets[0].data = [cleared, pending];
+                chartTelemetryObject.data.datasets[0].backgroundColor = [activeColor, '#0a0b10'];
+                chartTelemetryObject.update();
+            } else {
+                chartTelemetryObject = new Chart(ctx, {
+                    type: 'doughnut',
+                    data: {
+                        labels: ['Complete', 'Pending'],
+                        datasets: [{
+                            data: [cleared, pending],
+                            backgroundColor: [activeColor, '#0a0b10'],
+                            borderColor: '#020408',
+                            borderWidth: 2
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        plugins: { legend: { display: false }, tooltip: { enabled: true } },
+                        cutout: '75%'
+                    }
+                });
+            }
+        }
+
+        function exportSystemLedger() {
+            const raw = localStorage.getItem("dermal_v3_matrix_ledger") || "{}";
+            const blob = new Blob([raw], { type: "application/json" });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement("a");
+            a.href = url;
+            a.download = `dermal_matrix_ledger_v3.json`;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            writeTerminalLog("SYSTEM", "Data ledger local backup package successfully exported.");
+        }
+
+        function importSystemLedger(event) {
+            const file = event.target.files[0];
+            if (!file) return;
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                try {
+                    const parsed = JSON.parse(e.target.result);
+                    localStorage.setItem("dermal_v3_matrix_ledger", JSON.stringify(parsed));
+                    compileAppInterfaceMatrix();
+                    runMetricsEngine();
+                    dispatchLedgerToFirebase(parsed);
+                    writeTerminalLog("SYSTEM", "Imported ledger sequence validated and synched.");
+                } catch(err) {
+                    writeTerminalLog("ERROR", "Corrupted config packet structure handled during translation.");
+                }
+            };
+            reader.readAsText(file);
+        }
+    </script>
+</body>
+</html>
