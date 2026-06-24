@@ -1,12 +1,16 @@
+
 <!DOCTYPE html>
 <html lang="en" class="h-full bg-[#020408] text-slate-100 selection:bg-[#ff007f] selection:text-slate-950">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Bio-Luminescent Dermal Matrix Console v3</title>
-    <script src="https://cdn.tailwindcss.com"></script>
-    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
-    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <meta http-equiv="cache-control" content="no-store" />
+    <meta http-equiv="pragma" content="no-cache" />
+    <script src="https://cdn.tailwindcss.com?v=face"></script>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css?v=face">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js?v=face"></script>
+
     <script type="module">
       import { FirebaseBridge } from './js/firebase-config.js';
       window.FirebaseBridge = FirebaseBridge;
@@ -241,6 +245,7 @@
                 </div>
                 <div class="flex flex-wrap bg-slate-950 p-0.5 border border-slate-900 rounded-lg font-hud text-[9px] font-bold gap-0.5">
                     <button onclick="applyTimelineFilter('all')" id="btnFilter-all" class="px-2.5 py-1.5 rounded-md bg-slate-900 text-[var(--accent-color,#ff007f)] border border-slate-800 transition-all uppercase">All Operations</button>
+                    <button onclick="applyTimelineFilter('ICE')" id="btnFilter-ICE" class="px-2.5 py-1.5 rounded-md text-slate-400 hover:text-white transition-all uppercase">🧊 Ice Dip</button>
                     <button onclick="applyTimelineFilter('AM-C')" id="btnFilter-AM-C" class="px-2.5 py-1.5 rounded-md text-slate-400 hover:text-white transition-all uppercase">AM-Cleanse</button>
                     <button onclick="applyTimelineFilter('MID-S')" id="btnFilter-MID-S" class="px-2.5 py-1.5 rounded-md text-slate-400 hover:text-white transition-all uppercase">MID-Spray</button>
                     <button onclick="applyTimelineFilter('MID-M')" id="btnFilter-MID-M" class="px-2.5 py-1.5 rounded-md text-slate-400 hover:text-white transition-all uppercase">MID-Mask</button>
@@ -433,7 +438,8 @@
         const descriptiveTokenMap = { 
             "AM-C": "Besan Wash", "AM-B": "Brush AM 🪥", "AM-S": "Sunscreen", 
             "MID-S": "Spray Mist", "MID-M": "Dahi Mask", 
-            "PM-C": "Salicylic Wash", "PM-B": "Brush PM 🪥", "PM-L": "Moisturizer" 
+            "PM-C": "Salicylic Wash", "PM-B": "Brush PM 🪥", "PM-L": "Moisturizer",
+            "ICE": "Ice Face Dip"
         };
         
         let activeSelectionFilter = 'all';
@@ -469,6 +475,8 @@
             for (let i = 1; i <= 28; i++) { colorizeCardFrame(i); }
         }
 
+            activeSelectionFilter = tokenField;
+            ['all', 'ICE', 'AM-C', 'MID-S', 'MID-M', 'PM-C', 'BRUSH'].forEach(x => {
         function applyTimelineFilter(tokenField) {
             activeSelectionFilter = tokenField;
             ['all', 'AM-C', 'MID-S', 'MID-M', 'PM-C', 'BRUSH'].forEach(x => {
@@ -490,7 +498,17 @@
                 let internalCardsHtml = '';
 
                 Object.keys(meta.days).forEach(dayNum => {
-                    const tokens = meta.days[dayNum];
+                    let tokens = meta.days[dayNum];
+
+                    // Beard-style derma-roller pattern days (08,20,32,44,56...): remove Salicylic Wash (PM-C)
+                    // Pattern: day % 12 === 8
+                    const isDermaRollerDay = (dayNum >= 8 && dayNum % 12 === 8);
+                    if (isDermaRollerDay) {
+                        tokens = tokens.filter(tk => tk !== 'PM-C');
+                    }
+
+                    // Ice Face Dip is a daily habit: add on every day for face.html.
+                    if (!tokens.includes('ICE')) tokens = [...tokens, 'ICE'];
 
                     // Smart evaluation checking for standard filter match or grouping dental parameters
                     const matchesFilter = tokens.some(tk => {
@@ -503,6 +521,9 @@
 
                     let elementsHtml = '';
                     tokens.forEach(tk => {
+                        // Enforce PM-C removal on derma-roller pattern days even if token exists.
+                        if (isDermaRollerDay && tk === 'PM-C') return;
+
                         if (activeSelectionFilter !== 'all' && activeSelectionFilter !== 'BRUSH' && tk !== activeSelectionFilter) return;
                         if (activeSelectionFilter === 'BRUSH' && tk !== 'AM-B' && tk !== 'PM-B') return;
 
@@ -572,8 +593,23 @@
 
         function loadStateLedger() {
             let data = localStorage.getItem("dermal_v3_matrix_ledger");
-            return data ? JSON.parse(data) : {};
+            let ledger = data ? JSON.parse(data) : {};
+
+            // Guard: never allow PM-C (Salicylic Wash) to be considered on derma-roller pattern days.
+            // Pattern: dayNum % 12 === 8 => remove any stored PM-C state keys for those days.
+            try {
+                Object.keys(ledger).forEach((k) => {
+                    // ledger key format: dermal-ph{phaseKey}-d{dayNum}-{tk}
+                    const m = /^dermal-ph\d+-d(\d+)-PM-C$/.exec(k);
+                    if (!m) return;
+                    const dayNum = parseInt(m[1], 10);
+                    if (dayNum >= 8 && dayNum % 12 === 8) delete ledger[k];
+                });
+            } catch (e) {}
+
+            return ledger;
         }
+
 
         async function syncLedgerFromFirebase() {
             try {
@@ -809,6 +845,8 @@
             };
             reader.readAsText(file);
         }
+
     </script>
 </body>
 </html>
+

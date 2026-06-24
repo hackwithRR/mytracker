@@ -1,0 +1,543 @@
+<!DOCTYPE html>
+<html lang="en" class="h-full bg-[#020408] text-slate-100 selection:bg-amber-500 selection:text-slate-950">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Advanced Pogonotrophy Console v5</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css" />
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Orbitron:wght@400;600;800;900&family=JetBrains+Mono:wght@400;700&display=swap');
+    .font-hud { font-family: 'Orbitron', sans-serif; }
+    .font-code { font-family: 'JetBrains Mono', sans-serif; }
+
+    .hud-glass {
+      background: linear-gradient(135deg, rgba(20, 16, 5, 0.8) 0%, rgba(5, 4, 1, 0.98) 100%);
+      backdrop-filter: blur(20px);
+      border: 1px solid rgba(251, 191, 36, 0.1);
+    }
+
+    :root {
+      --accent-color: #f59e0b;
+      --accent-glow: rgba(245, 158, 11, 0.35);
+    }
+
+    /* Match beard’s current amber TRT highlight look */
+    .treatment-day {
+      border-color: #f59e0b !important;
+      background: rgba(245, 158, 11, 0.05) !important;
+    }
+
+    .glow-node-input:checked + div {
+      box-shadow: 0 0 14px var(--accent-glow);
+      border-color: var(--accent-color) !important;
+      background: rgba(0, 0, 0, 0.5) !important;
+    }
+
+    .radar-pulse-node { animation: radarPulse 2.5s infinite ease-in-out; }
+    @keyframes radarPulse {
+      0% { transform: scale(0.95); opacity: 0.4; box-shadow: 0 0 0 0 rgba(245,158,11,0.4); }
+      70% { transform: scale(1); opacity: 1; box-shadow: 0 0 0 8px rgba(245,158,11,0); }
+      100% { transform: scale(0.95); opacity: 0.4; box-shadow: 0 0 0 0 rgba(245,158,11,0); }
+    }
+
+    .custom-scroll::-webkit-scrollbar { width: 6px; height: 6px; }
+    .custom-scroll::-webkit-scrollbar-track { background: rgba(0, 0, 0, 0.2); }
+    .custom-scroll::-webkit-scrollbar-thumb { background: #453000; border-radius: 99px; }
+    .custom-scroll::-webkit-scrollbar-thumb:hover { background: #5a3e00; }
+  </style>
+</head>
+
+<body class="flex flex-col text-xs text-slate-300 font-code bg-[#010204] min-h-screen">
+
+  <header id="topNavbar" class="h-16 flex-shrink-0 hud-glass border-b border-slate-900 px-3 sm:px-6 flex items-center justify-between z-50">
+    <div class="flex items-center gap-3 min-w-0 flex-1">
+      <div id="globalRadarIndicator" class="w-2.5 h-2.5 rounded-full bg-[#f59e0b] radar-pulse-node flex-shrink-0"></div>
+      <div class="min-w-0">
+        <h1 class="text-sm font-black font-hud tracking-widest text-transparent bg-clip-text bg-gradient-to-r from-white via-slate-200 to-amber-400 truncate">BEARD DENSITY ACTIVATION CONSOLE</h1>
+        <p class="hidden sm:block text-[9px] text-slate-500 uppercase font-hud tracking-widest truncate">152-Day Beard Growth Stimulation &amp; Dermaroller Protocol</p>
+      </div>
+    </div>
+
+    <div class="flex items-center gap-2 flex-shrink-0">
+      <div class="hidden sm:flex items-center gap-1.5 bg-slate-950/80 px-2 py-1 rounded-lg border border-slate-900 max-w-full">
+        <span class="text-[9px] font-hud text-slate-600 font-bold uppercase mr-1">Theme Matrix:</span>
+        <button onclick="shiftThemeAccent('amber')" class="w-2.5 h-2.5 rounded-full bg-amber-500 border border-white/20 hover:scale-125 transition-all"></button>
+      </div>
+
+      <div class="flex bg-slate-950 border border-slate-900 p-0.5 rounded-lg text-[10px] font-hud">
+        <button onclick="window.location.href='index.html'" class="px-2.5 py-1 text-slate-400 hover:text-white transition-all"><i class="bi bi-house-door"></i> Menu</button>
+        <button onclick="exportSystemLedger()" class="px-2.5 py-1 text-slate-400 hover:text-white transition-all"><i class="bi bi-download"></i> Export</button>
+        <label for="importFileEngine" class="px-2.5 py-1 text-slate-400 hover:text-white cursor-pointer transition-all"><i class="bi bi-upload"></i> Import</label>
+        <input type="file" id="importFileEngine" class="hidden" accept=".json" onchange="importSystemLedger(event)">
+      </div>
+
+    </div>
+  </header>
+
+  <div class="flex flex-col lg:flex-row flex-1 w-full max-w-[1920px] mx-auto">
+
+    <aside class="w-full lg:w-[350px] xl:w-[410px] flex-shrink-0 lg:h-full min-h-0 border-r-0 lg:border-r border-slate-900/60 bg-[#04060c]/40 p-4 overflow-y-auto custom-scroll space-y-5">
+
+      <section class="border border-red-950 bg-red-950/10 rounded-xl p-4 space-y-3">
+        <div class="flex items-center gap-2 text-red-400 border-b border-red-900/40 pb-2">
+          <i class="bi bi-exclamation-octagon-fill text-sm"></i>
+          <span class="font-hud text-[10px] uppercase font-black tracking-widest">▲ CRITICAL SAFETY DIRECTIVES</span>
+        </div>
+        <div class="space-y-2.5 text-[11px] text-slate-300 leading-relaxed">
+          <div class="bg-slate-950/60 p-2.5 rounded-lg border border-red-900/30">
+            <b class="text-amber-500 block font-hud text-[9px] uppercase mb-1">▲ CAUTION: DERMA-ROLLER</b>
+            Do not apply excessive pressure. Sterilize the roller with 70% Isopropyl alcohol before and after every use. Never roll over active acne or infected skin.
+          </div>
+          <div class="bg-slate-950/60 p-2.5 rounded-lg border border-red-900/30">
+            <b class="text-amber-500 block font-hud text-[9px] uppercase mb-1">▲ CAUTION: CASTOR OIL</b>
+            Castor oil is highly viscous. Apply sparingly to damp skin to prevent clogged pores. Always wash off thoroughly 2 hours post-application.
+          </div>
+          <div class="bg-slate-950/60 p-2.5 rounded-lg border border-red-900/30">
+            <b class="text-amber-500 block font-hud text-[9px] uppercase mb-1">▲ NUTRITION: ZINC FUEL</b>
+            Ensure your nut consumption (Almonds/Walnuts) occurs alongside water intake to prevent digestion issues. Consistency is the primary catalyst for hair thickness.
+          </div>
+        </div>
+      </section>
+
+      <section class="hud-glass rounded-xl p-4 space-y-3">
+        <div class="flex items-center justify-between">
+          <span class="font-hud text-[10px] uppercase text-slate-400 font-bold tracking-wide">Beard Matrix Progress</span>
+          <span id="lblPercentMetric" class="text-2xl font-black font-hud text-amber-400 tracking-tighter">0.0%</span>
+        </div>
+        <div class="h-1 w-full bg-slate-950 border border-slate-900 rounded-full overflow-hidden">
+          <div id="barPercentMetric" class="h-full bg-gradient-to-r from-amber-500 to-rose-400 transition-all duration-300" style="width: 0%"></div>
+        </div>
+        <div class="grid grid-cols-2 gap-2 text-[10px] font-code text-slate-400 bg-slate-950/60 p-2 rounded-lg border border-slate-900">
+          <div>Completed Nodes: <span id="statNodeCleared" class="text-amber-400 font-bold">0</span></div>
+          <div>Remaining Steps: <span id="statNodePending" class="text-rose-300 font-bold">0</span></div>
+        </div>
+        <div class="h-24 relative pt-1 flex justify-center items-center">
+          <canvas id="chartMiniTelemetry"></canvas>
+        </div>
+      </section>
+
+      <section class="hud-glass rounded-xl p-4 space-y-2">
+        <span class="font-hud text-[10px] uppercase text-slate-400 font-bold tracking-wide block">Matrix Location Jump Terminal</span>
+        <div class="flex gap-2">
+          <input type="number" id="txtJumpDay" min="1" max="152" placeholder="Enter Day Index (1-152)..." 
+            class="flex-1 bg-slate-950 border border-slate-900 rounded-lg px-3 py-1.5 font-code text-[11px] text-slate-200 outline-none focus:border-amber-500 transition-all">
+          <button onclick="executeDayWarpJump()" class="px-3 bg-amber-950/40 text-amber-300 border border-amber-800/50 hover:bg-amber-900/50 font-hud text-[11px] font-bold uppercase rounded-lg transition-all">Warp</button>
+        </div>
+        <div class="grid grid-cols-5 gap-1 pt-1 font-hud text-[9px] text-center font-bold">
+          <button onclick="warpToPhaseSection(1)" class="p-1 bg-slate-950 hover:bg-slate-900 border border-slate-900 rounded text-slate-400 hover:text-amber-400">M1</button>
+          <button onclick="warpToPhaseSection(2)" class="p-1 bg-slate-950 hover:bg-slate-900 border border-slate-900 rounded text-slate-400 hover:text-rose-300">M2</button>
+          <button onclick="warpToPhaseSection(3)" class="p-1 bg-slate-950 hover:bg-slate-900 border border-slate-900 rounded text-slate-400 hover:text-fuchsia-300">M3</button>
+          <button onclick="warpToPhaseSection(4)" class="p-1 bg-slate-950 hover:bg-slate-900 border border-slate-900 rounded text-slate-400 hover:text-emerald-300">M4</button>
+          <button onclick="warpToPhaseSection(5)" class="p-1 bg-slate-950 hover:bg-slate-900 border border-slate-900 rounded text-slate-400 hover:text-emerald-300">M5</button>
+        </div>
+      </section>
+
+      <section class="hud-glass rounded-xl p-4 space-y-2">
+        <div class="flex items-center justify-between border-b border-slate-900 pb-1.5">
+          <span class="font-hud text-[10px] uppercase text-slate-400 font-bold tracking-wide">Console Activity Log Feed</span>
+          <span class="w-1.5 h-1.5 rounded-full bg-amber-500 animate-pulse"></span>
+        </div>
+        <div id="liveTerminalFeedContainer" class="h-28 overflow-y-auto bg-slate-950 border border-slate-900/80 rounded-lg p-2 font-code text-[10px] text-slate-400 space-y-1 custom-scroll">
+          <div class="text-slate-600">// Engine initialized. Standby for beard metric confirmation telemetry...</div>
+        </div>
+      </section>
+    </aside>
+
+    <main id="matrixGridScrollTrack" class="flex-1 w-full min-h-0 overflow-y-auto custom-scroll p-6 space-y-8 bg-[#020306]">
+
+      <div class="hud-glass p-3 rounded-xl border border-slate-900/80 flex flex-col sm:flex-row items-center justify-between gap-3 sticky top-0 z-30">
+        <div class="flex items-center gap-2">
+          <span class="w-1.5 h-1.5 bg-amber-500 rounded-sm"></span>
+          <span class="font-hud text-[10px] uppercase font-black text-slate-400 tracking-wider">Dynamic Token Matrix Filters:</span>
+        </div>
+        <div class="flex flex-wrap bg-slate-950 p-0.5 border border-slate-900 rounded-lg font-hud text-[9px] font-bold gap-0.5">
+          <button onclick="applyTimelineFilter('all')" id="btnFilter-all" class="px-2.5 py-1.5 rounded-md bg-slate-900 text-[var(--accent-color,#f59e0b)] border border-slate-800 transition-all uppercase">All Operations</button>
+          <button onclick="applyTimelineFilter('ZINC')" id="btnFilter-ZINC" class="px-2.5 py-1.5 rounded-md text-slate-400 hover:text-white transition-all uppercase">ZINC/Nuts</button>
+          <button onclick="applyTimelineFilter('ROLLER')" id="btnFilter-ROLLER" class="px-2.5 py-1.5 rounded-md text-slate-400 hover:text-white transition-all uppercase">Derma Roller</button>
+          <button onclick="applyTimelineFilter('CASTOR')" id="btnFilter-CASTOR" class="px-2.5 py-1.5 rounded-md text-slate-400 hover:text-white transition-all uppercase">Castor Oil</button>
+        </div>
+      </div>
+
+      <div id="masterProgrammaticGridRoot" class="space-y-8"></div>
+    </main>
+  </div>
+
+  <script type="module">
+    import { FirebaseBridge } from './js/firebase-config.js';
+    window.FirebaseBridge = FirebaseBridge;
+    
+    // Keep beard inline script compatible by not executing anything here.
+    
+  </script>
+
+  <script>
+    // Beard operations per day:
+
+    // - ZINC/Nuts: every day
+    // - Derma Roller: 8, 20, 32, 44, 56, ... (every 12 days)
+    // - Castor Oil: multiples of 6 OR 7
+
+    const LEDGER_KEY = 'beard_v3_matrix_ledger';
+
+    const beardPhases = {
+      1: { label: 'MONTH 1: DENSITY WARMUP (DAYS 1-30)', start: 1, end: 30, color: 'from-amber-500/10 to-transparent', target: 'Baseline nutrition + safe roller cadence start.' },
+      2: { label: 'MONTH 2: FOILICLE UPLIFT (DAYS 31-60)', start: 31, end: 60, color: 'from-rose-500/10 to-transparent', target: 'Maintain steady nutrition and apply roller only on pattern days.' },
+      3: { label: 'MONTH 3: STRUCTURE SYNC (DAYS 61-91)', start: 61, end: 91, color: 'from-fuchsia-500/10 to-transparent', target: 'Castor oil timing strictly on multiples of 6/7.' },
+      4: { label: 'MONTH 4: THICKNESS ACCRUAL (DAYS 92-121)', start: 92, end: 121, color: 'from-emerald-500/10 to-transparent', target: 'Sustain routine; complete all selected nodes to advance progress.' },
+      5: { label: 'MONTH 5: RETENTION LOCK (DAYS 122-152)', start: 122, end: 152, color: 'from-emerald-500/10 to-transparent', target: 'Finalize consistency; keep roller and castor days on their schedules.' }
+    };
+
+    const tokenMeta = {
+      ZINC: { token: 'ZINC', label: 'Zinc/Nuts', accentText: 'text-amber-400', kind: 'ZINC' },
+      ROLLER: { token: 'ROLLER', label: 'Roller', accentText: 'text-amber-400', kind: 'ROLLER' },
+      CASTOR: { token: 'CASTOR', label: 'Castor Oil', accentText: 'text-amber-400', kind: 'CASTOR' }
+    };
+
+
+    let chartTelemetryObject = null;
+
+    async function syncLedgerFromFirebase() {
+      try {
+        // beard.html is a non-module page; FirebaseBridge is exposed as a global only if the page imported it.
+        if (!window.FirebaseBridge || typeof window.FirebaseBridge.connectCloudNode !== 'function') {
+          // silently ignore on offline/local usage
+          return;
+        }
+
+        const res = window.FirebaseBridge.connectCloudNode(window.__FIREBASE_CONFIG__ || {});
+        if (!res || !res.bundle) return;
+
+        // One-time load
+        const cloudState = await res.bundle.readStateFromCloud();
+        if (cloudState && typeof cloudState === 'object') {
+          localStorage.setItem(LEDGER_KEY, JSON.stringify(cloudState));
+          compileAppInterfaceMatrix();
+          runMetricsEngine();
+        }
+
+        // Live sync
+        res.bundle.subscribeStateFromCloud((updated) => {
+          if (!updated || typeof updated !== 'object') return;
+          localStorage.setItem(LEDGER_KEY, JSON.stringify(updated));
+          compileAppInterfaceMatrix();
+          runMetricsEngine();
+        });
+
+        window.FirebaseBridge.__bundle = res.bundle;
+      } catch (e) {
+        // ignore
+      }
+    }
+
+
+    document.addEventListener('DOMContentLoaded', () => {
+      compileAppInterfaceMatrix();
+      runMetricsEngine();
+      syncLedgerFromFirebase();
+    });
+
+
+    function shiftThemeAccent(_) {
+      // single-theme beard page: keep amber codes intact
+      writeTerminalLog('SYSTEM', 'THEME ACCENT LOCKED TO BEARD AMBER (SCHEDULE CONSISTENCY MODE)');
+      for (let i = 1; i <= 152; i++) colorizeCardFrame(i);
+    }
+
+    function applyTimelineFilter(tokenField) {
+      activeSelectionFilter = tokenField;
+      ['all', 'ZINC', 'ROLLER', 'CASTOR'].forEach(x => {
+        const btn = document.getElementById(`btnFilter-${x}`);
+        if (btn) btn.className = "px-2.5 py-1.5 rounded-md text-slate-400 hover:text-white transition-all uppercase";
+      });
+      const activeBtn = document.getElementById(`btnFilter-${tokenField}`);
+      if (activeBtn) activeBtn.className = "px-2.5 py-1.5 rounded-md bg-slate-900 text-[var(--accent-color,#f59e0b)] border border-slate-800 transition-all uppercase";
+      compileAppInterfaceMatrix();
+    }
+
+    function isDermaRollerDay(day) {
+      // 8, 20, 32, 44, 56... => day % 12 === 8
+      return day >= 8 && (day % 12 === 8);
+    }
+
+    function isCastorDay(day) {
+      return (day % 6 === 0) || (day % 7 === 0);
+    }
+
+    function getTokensForDay(day) {
+      const tokens = ['ZINC'];
+      if (isDermaRollerDay(day)) tokens.push('ROLLER');
+      if (isCastorDay(day)) tokens.push('CASTOR');
+      return tokens;
+    }
+
+    function compileAppInterfaceMatrix() {
+      const root = document.getElementById('masterProgrammaticGridRoot');
+      let compiledHtml = '';
+      const ledger = loadStateLedger();
+
+      Object.keys(beardPhases).forEach(phaseIdx => {
+        const phase = beardPhases[phaseIdx];
+        let internalCardsHtml = '';
+
+        for (let dayNum = phase.start; dayNum <= phase.end; dayNum++) {
+          const tokens = getTokensForDay(dayNum);
+
+          // filter match
+          const shouldShow = tokens.some(tk => {
+            if (activeSelectionFilter === 'all') return true;
+            return tk === activeSelectionFilter;
+          });
+          if (!shouldShow) continue;
+
+          // weekly TRT highlight keeps beard’s amber pattern: day % 7 === 0
+          const isWeeklyTRT = (dayNum % 7 === 0);
+
+          let elementsHtml = '';
+          tokens.forEach(tk => {
+            if (activeSelectionFilter !== 'all' && tk !== activeSelectionFilter) return;
+
+            const uniqueNodeId = `beard-day-${dayNum}-${tk}`;
+            const checkedAttr = ledger[uniqueNodeId] ? 'checked' : '';
+
+            // Keep derma-roller and castor specific visual emphasis
+            const isRoller = tk === 'ROLLER';
+            const isCastor = tk === 'CASTOR';
+            const frameBorderClass = isRoller || isCastor ? '' : '';
+
+            elementsHtml += `
+              <label class="relative flex items-center gap-1.5 cursor-pointer group select-none">
+                <input type="checkbox" id="${uniqueNodeId}" ${checkedAttr}
+                       onchange="toggleMatrixNode('${uniqueNodeId}', ${dayNum}, '${tk}')"
+                       class="glow-node-input absolute opacity-0 w-0 h-0 peer">
+                <div class="w-full flex items-center justify-between p-1.5 rounded bg-slate-950/80 border border-amber-900/40 group-hover:border-amber-600/40 transition-all peer-checked:border-amber-500/60">
+                  <span class="text-[10px] text-slate-400 peer-checked:text-white"><b class="${tokenMeta[tk].accentText}">[${tk === 'ZINC' ? 'ZINC' : (tk === 'ROLLER' ? 'ROLLER' : 'CASTOR')}]</b> ${tokenMeta[tk].label}</span>
+                  <i class="bi bi-shield-check text-transparent peer-checked:text-emerald-400 text-[10px]"></i>
+                </div>
+              </label>
+            `;
+          });
+
+          internalCardsHtml += `
+            <div id="daycard-index-${dayNum}" class="hud-glass rounded-xl p-3 border border-slate-900 ${isWeeklyTRT ? 'treatment-day' : ''} flex flex-col justify-between hover:border-slate-700 transition-all">
+              <div>
+                <div class="flex items-center justify-between border-b border-slate-900 pb-1 mb-2">
+                  <span class="font-hud font-black text-white text-[11px]">DAY ${String(dayNum).padStart(3, '0')}</span>
+                  ${isWeeklyTRT ? '<span class="text-amber-500 text-[9px] font-hud font-bold">TRT</span>' : '<span class="text-[9px] text-slate-600 font-hud font-bold">&nbsp;</span>'}
+                </div>
+                <div class="grid grid-cols-1 gap-1">${elementsHtml || '<div class="h-8"></div>'}</div>
+              </div>
+            </div>
+          `;
+        }
+
+        if (!internalCardsHtml) return;
+
+        compiledHtml += `
+          <section class="hud-glass p-5 rounded-xl border border-slate-900 space-y-4 bg-gradient-to-b ${phase.color}">
+            <div class="flex flex-col md:flex-row md:items-center justify-between gap-2 border-b border-slate-900/80 pb-3">
+              <div>
+                <h3 class="text-xs font-bold font-hud text-slate-100 uppercase tracking-widest flex items-center gap-2">
+                  <span class="w-1.5 h-1.5 rounded-sm bg-gradient-to-r from-amber-400 to-rose-400"></span>${phase.label}
+                </h3>
+                <p class="text-[10px] text-amber-300 font-code mt-1"><b class="text-slate-400 uppercase font-hud text-[9px]">Target Area:</b> ${phase.target}</p>
+              </div>
+            </div>
+            <div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-3">${internalCardsHtml}</div>
+          </section>
+        `;
+      });
+
+      root.innerHTML = compiledHtml || `<div class="hud-glass p-8 rounded-xl border border-slate-900 text-center text-slate-500 font-hud tracking-widest uppercase">No matching operational fields detected in viewport.</div>`;
+
+      // after render, apply completion highlight behavior
+      for (let i = 1; i <= 152; i++) colorizeCardFrame(i);
+    }
+
+    function loadStateLedger() {
+      let data = localStorage.getItem(LEDGER_KEY);
+      return data ? JSON.parse(data) : {};
+    }
+
+
+
+      // Push update to Firebase for real-time sync across devices (best-effort)
+      (async () => {
+        try {
+          const bundle = window.FirebaseBridge?.__bundle;
+          if (bundle && typeof bundle.pushStateToCloud === 'function') {
+            await bundle.pushStateToCloud(cache);
+          }
+        } catch (e) {
+          // ignore
+        }
+      })();
+
+      writeTerminalLog('ACTION', `DAY ${String(dayIndex).padStart(3, '0')} // NODE [${elementToken}] // CONFIRMATION: ${state ? 'SECURED' : 'PURGED'}`);
+      runMetricsEngine();
+    }
+
+
+    function colorizeCardFrame(dayIndex) {
+      const card = document.getElementById(`daycard-index-${dayIndex}`);
+      if (!card) return;
+
+      // completion highlight rule: all visible checkboxes checked => amber glow
+      const inputs = card.querySelectorAll('input[type="checkbox"]');
+      const checked = card.querySelectorAll('input[type="checkbox"]:checked');
+
+      if (inputs.length > 0 && inputs.length === checked.length) {
+        // keep original amber TRT colors even when highlighted; completion adds slight stronger amber
+        card.style.borderColor = '#f59e0b';
+        card.style.background = 'rgba(245, 158, 11, 0.08)';
+      } else {
+        // revert to weekly TRT styling if applicable
+        card.style.borderColor = '';
+        card.style.background = '';
+      }
+
+      // Ensure weekly TRT visual remains correct even after completion toggles
+      if (dayIndex % 7 === 0) {
+        card.classList.add('treatment-day');
+      } else {
+        card.classList.remove('treatment-day');
+      }
+    }
+
+    function runMetricsEngine() {
+      // compute completion across all checkboxes in DOM (honors active filter)
+      const allCheckboxes = document.querySelectorAll('#masterProgrammaticGridRoot input[type="checkbox"]');
+      const total = allCheckboxes.length;
+      const checked = document.querySelectorAll('#masterProgrammaticGridRoot input[type="checkbox"]:checked').length;
+
+      const pending = total - checked;
+      const percent = total > 0 ? ((checked / total) * 100).toFixed(1) : '0.0';
+
+      document.getElementById('lblPercentMetric').innerText = `${percent}%`;
+      document.getElementById('barPercentMetric').style.width = `${percent}%`;
+      document.getElementById('statNodeCleared').innerText = checked;
+      document.getElementById('statNodePending').innerText = pending;
+
+      updateTelemetryChart(checked, pending);
+    }
+
+    function updateTelemetryChart(completed, pending) {
+      const ctx = document.getElementById('chartMiniTelemetry').getContext('2d');
+      const accentColor = '#f59e0b';
+
+      if (chartTelemetryObject) {
+        chartTelemetryObject.data.datasets[0].data = [completed, pending];
+        chartTelemetryObject.data.datasets[0].backgroundColor = [accentColor, '#0f172a'];
+        chartTelemetryObject.update();
+      } else {
+        chartTelemetryObject = new Chart(ctx, {
+          type: 'doughnut',
+          data: {
+            labels: ['Complete', 'Pending'],
+            datasets: [{
+              data: [completed, pending],
+              backgroundColor: [accentColor, '#0f172a'],
+              borderColor: '#020408',
+              borderWidth: 2,
+              hoverOffset: 4
+            }]
+          },
+          options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+              legend: { display: false },
+              tooltip: { enabled: true }
+            },
+            cutout: '70%'
+          }
+        });
+      }
+    }
+
+    function writeTerminalLog(type, message) {
+      const container = document.getElementById('liveTerminalFeedContainer');
+      if (!container) return;
+      const stamp = new Date().toLocaleTimeString();
+      const logLine = document.createElement('div');
+      logLine.className = type === 'ACTION' ? 'text-amber-300' : (type === 'ERROR' ? 'text-rose-400' : 'text-amber-400');
+      logLine.innerHTML = `<span class="text-slate-600">[${stamp}]</span> <b class="font-hud text-[9px]">[${type}]</b> ${message}`;
+      container.appendChild(logLine);
+      container.scrollTop = container.scrollHeight;
+    }
+
+    function executeDayWarpJump() {
+      const input = document.getElementById('txtJumpDay');
+      const val = parseInt(input.value);
+      if (!val || val < 1 || val > 152) {
+        writeTerminalLog('ERROR', `INVALID CHRONO EXPEDITION POSITION: ${input.value}`);
+        return;
+      }
+      const targetElement = document.getElementById(`daycard-index-${val}`);
+      if (!targetElement) {
+        writeTerminalLog('ERROR', 'DAY ELEMENT UNAVAILABLE IN TIMELINE. CLEAR FILTERS (or switch All Operations).');
+        return;
+      }
+
+      targetElement.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      const oldBorder = targetElement.style.borderColor;
+      const oldBg = targetElement.style.background;
+
+      // flash amber
+      targetElement.style.borderColor = '#f59e0b';
+      targetElement.style.background = 'rgba(245, 158, 11, 0.12)';
+      setTimeout(() => {
+        targetElement.style.borderColor = oldBorder;
+        targetElement.style.background = oldBg;
+        colorizeCardFrame(val);
+      }, 2000);
+
+      writeTerminalLog('WARP', `TRANSITING BEARD MATRIX VIEW TO DAY: ${val}`);
+    }
+
+    function warpToPhaseSection(phaseIdx) {
+      const phase = beardPhases[phaseIdx];
+      if (!phase) return;
+      const anchorDay = phase.start;
+      const el = document.getElementById(`daycard-index-${anchorDay}`);
+      if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      writeTerminalLog('WARP', `JUMPED TO ${phase.label} (DAY ${anchorDay})`);
+    }
+
+    function exportSystemLedger() {
+      const raw = localStorage.getItem(LEDGER_KEY) || '{}';
+      const blob = new Blob([raw], { type: 'application/json' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = 'beard_matrix_ledger.json';
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      writeTerminalLog('SYSTEM', 'LEDGER EXPORT COMPLETE (BEARD MODULE)');
+    }
+
+    function importSystemLedger(event) {
+      const file = event.target.files && event.target.files[0];
+      if (!file) return;
+      const reader = new FileReader();
+      reader.onload = function (e) {
+        try {
+          const parsed = JSON.parse(e.target.result);
+          localStorage.setItem(LEDGER_KEY, JSON.stringify(parsed));
+          compileAppInterfaceMatrix();
+          runMetricsEngine();
+          writeTerminalLog('SYSTEM', 'LEDGER IMPORT COMPLETE (BEARD MODULE)');
+        } catch (err) {
+          writeTerminalLog('ERROR', 'INVALID BEARD LEDGER FILE. IMPORT FAILED.');
+        }
+      };
+      reader.readAsText(file);
+    }
+
+  </script>
+</body>
+</html>
+
