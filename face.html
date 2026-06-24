@@ -475,11 +475,9 @@
             for (let i = 1; i <= 28; i++) { colorizeCardFrame(i); }
         }
 
-            activeSelectionFilter = tokenField;
-            ['all', 'ICE', 'AM-C', 'MID-S', 'MID-M', 'PM-C', 'BRUSH'].forEach(x => {
         function applyTimelineFilter(tokenField) {
             activeSelectionFilter = tokenField;
-            ['all', 'AM-C', 'MID-S', 'MID-M', 'PM-C', 'BRUSH'].forEach(x => {
+            ['all', 'ICE', 'AM-C', 'MID-S', 'MID-M', 'PM-C', 'BRUSH'].forEach(x => {
                 const btn = document.getElementById(`btnFilter-${x}`);
                 if (btn) btn.className = "px-2.5 py-1.5 rounded-md text-slate-400 hover:text-white transition-all uppercase";
             });
