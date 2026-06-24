@@ -105,28 +105,25 @@ function exportInventory() {
 async function syncInventoryFromFirebase() {
   try {
     if (!window.FirebaseBridge || typeof window.FirebaseBridge.connectCloudNode !== 'function') return;
-
     const res = window.FirebaseBridge.connectCloudNode(window.__FIREBASE_CONFIG__ || {});
     if (!res?.success || !res.bundle) return;
 
-    const path = FIREBASE_INVENTORY_PATH;
-    // FirebaseBridge.activePath is fixed; we temporarily push to it by overriding activePath.
-    // Instead of changing FirebaseBridge, we do a minimal approach: read whole path stored in activePath.
-    // Current FirebaseBridge expects activePath 'follicle_matrix_ledger/user_state'.
-    // To avoid editing firebase-config.js, we keep this module local-only unless you want
-    // to refactor FirebaseBridge.
-    
-    // Therefore: do local-only for now.
-    return;
+    const cloudState = await res.bundle.readStateFromCloud(FIREBASE_INVENTORY_PATH + '/user_state');
+    if (cloudState && typeof cloudState === 'object') {
+      setInventory(cloudState);
+      renderTable();
+    }
   } catch {
-    return;
+    // ignore
   }
 }
+
 
 function buildRow(item) {
   const daily = computeDailyConsumption(item);
   const daysLeft = computeDaysLeft(item);
   const threshold = computeRestockThresholdDays(item);
+
 
   const restockDue = daysLeft !== Infinity && daysLeft <= threshold;
   // Extra smart reminder for sprays/fresh items:
@@ -146,6 +143,7 @@ function buildRow(item) {
   }
 
   // Freshness is time since last refresh; however we don't track events yet.
+
   // We approximate using startDate as “freshness baseline”.
   // startDate should be the date you started this spray batch.
   const startMs = isoToMs(item.startDate);
@@ -501,14 +499,14 @@ function wireForm() {
 function init() {
   wireForm();
   renderTable();
-  // Optional future: firebase sync when you refactor FirebaseBridge activePath.
-  // syncInventoryFromFirebase().then(()=>renderTable());
+  syncInventoryFromFirebase().then(() => renderTable());
 
   // React when storage changes (multi-tab)
   window.addEventListener('storage', (e) => {
     if (e.key === INVENTORY_CACHE_KEY) renderTable();
   });
 }
+
 
 document.addEventListener('DOMContentLoaded', init);
 

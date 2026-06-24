@@ -124,6 +124,7 @@
 <body class="flex flex-col text-xs text-slate-300 font-code bg-[#010204] min-h-screen">
 
     <header id="topNavbar" class="h-16 flex-shrink-0 hud-glass border-b border-slate-900 px-3 sm:px-6 flex items-center justify-between z-50">
+
         <div class="flex items-center gap-3 min-w-0 flex-1"> 
 
             <div id="globalRadarIndicator" class="w-2.5 h-2.5 rounded-full bg-cyan-400 radar-pulse-node flex-shrink-0"></div>
@@ -279,8 +280,26 @@
         </main>
     </div>
 
+    <script type="module">
+      import { ensureServiceWorker, requestNotificationPermission, scheduleDailyNotification, getPageSettings } from './js/push-notify.js';
+      const pageKey = 'hair';
+
+      document.addEventListener('DOMContentLoaded', async () => {
+        await ensureServiceWorker();
+        try { await requestNotificationPermission(); } catch (e) {}
+        const cfg = getPageSettings(pageKey);
+        scheduleDailyNotification({
+          pageKey,
+          hhmm: (cfg?.scheduleTime || '09:00'),
+          title: 'Hair reminder',
+          getBodyText: () => 'Open Hair page to continue your matrix.'
+        });
+      });
+    </script>
+
     <script>
         const globalMatrixDataset = {
+
             1: { phase: "MONTH 1: CYAN SHIELD PROTOCOL (DAYS 1-30)", target: "Strip away the grease mantle, neutralize the fungal itch, and prepare clean follicle beds.", logQuote: "The surface oil balance is normalizing. The 3-minute medicated contact time is driving out the fungus!", length: 30, tag: "p1", color: "from-cyan-500/10 to-transparent", 
                  days: {
                     1: ["S","W","M"], 2: ["S","M"], 3: ["S","W","M"], 4: ["S","M"], 5: ["S","W","M"], 6: ["S","M"],

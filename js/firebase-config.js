@@ -11,32 +11,35 @@ export const FirebaseBridge = {
             return {
                 success: true,
                 bundle: {
-                    pushStateToCloud: async (payloadObj) => {
+                    pushStateToCloud: async (payloadObj, overridePath) => {
                         const { initializeApp } = await import(firebaseAppModuleUrl);
                         const { getDatabase, ref, set } = await import(firebaseDbModuleUrl);
 
                         const appInstance = initializeApp(configObject);
                         const dbInstance = getDatabase(appInstance);
-                        await set(ref(dbInstance, FirebaseBridge.activePath), payloadObj);
+                        const path = overridePath || FirebaseBridge.activePath;
+                        await set(ref(dbInstance, path), payloadObj);
                     },
 
-                    readStateFromCloud: async () => {
+                    readStateFromCloud: async (overridePath) => {
                         const { initializeApp } = await import(firebaseAppModuleUrl);
                         const { getDatabase, ref, get } = await import(firebaseDbModuleUrl);
 
                         const appInstance = initializeApp(configObject);
                         const dbInstance = getDatabase(appInstance);
-                        const snap = await get(ref(dbInstance, FirebaseBridge.activePath));
+                        const path = overridePath || FirebaseBridge.activePath;
+                        const snap = await get(ref(dbInstance, path));
                         return snap.exists() ? snap.val() : {};
                     },
 
-                    subscribeStateFromCloud: async (onPayload) => {
+                    subscribeStateFromCloud: async (onPayload, overridePath) => {
                         const { initializeApp } = await import(firebaseAppModuleUrl);
                         const { getDatabase, ref, onValue } = await import(firebaseDbModuleUrl);
 
                         const appInstance = initializeApp(configObject);
                         const dbInstance = getDatabase(appInstance);
-                        const r = ref(dbInstance, FirebaseBridge.activePath);
+                        const path = overridePath || FirebaseBridge.activePath;
+                        const r = ref(dbInstance, path);
 
                         const unsubscribe = onValue(r, (snap) => {
                             onPayload(snap.exists() ? snap.val() : {});
@@ -51,3 +54,4 @@ export const FirebaseBridge = {
         }
     }
 };
+
