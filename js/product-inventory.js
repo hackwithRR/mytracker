@@ -84,28 +84,45 @@ function setInventory(inv) {
   localStorage.setItem(INVENTORY_CACHE_KEY, JSON.stringify(inv));
 
   // Push to Firebase best-effort.
-  // Some pages may not stash FirebaseBridge.__bundle yet, so we fall back to
-  // creating a short-lived bundle via connectCloudNode.
+  // Fix: ensure writes go to product_inventory_v1/user_state (not hair/face/beard path).
   try {
     const payload = { ...inv }; // top-level product keymap
 
-    const bundle = window.FirebaseBridge?.__bundle;
+    const bridge = window.FirebaseBridge;
+    if (!bridge) return;
+
+    const oldPath = bridge.activePath;
+    bridge.activePath = FIREBASE_INVENTORY_PATH;
+
+    // Prefer existing bundle if present.
+    const bundle = bridge.__bundle;
     if (bundle && typeof bundle.pushStateToCloud === 'function') {
-      bundle.pushStateToCloud(payload);
+      Promise.resolve(bundle.pushStateToCloud(payload)).finally(() => {
+        bridge.activePath = oldPath;
+      });
       return;
     }
 
-    // Fallback: create a new bundle instance and push.
-    if (window.FirebaseBridge && typeof window.FirebaseBridge.connectCloudNode === 'function') {
-      const res = window.FirebaseBridge.connectCloudNode(window.__FIREBASE_CONFIG__ || {});
+    // Fallback: create a short-lived bundle and push.
+    if (typeof bridge.connectCloudNode === 'function') {
+      const res = bridge.connectCloudNode(window.__FIREBASE_CONFIG__ || {});
       if (res?.bundle && typeof res.bundle.pushStateToCloud === 'function') {
-        res.bundle.pushStateToCloud(payload);
+        Promise.resolve(res.bundle.pushStateToCloud(payload)).finally(() => {
+          bridge.activePath = oldPath;
+        });
+        return;
       }
     }
+
+    bridge.activePath = oldPath;
   } catch (e) {
+    try {
+      window.FirebaseBridge.activePath = window.FirebaseBridge?.activePath;
+    } catch {}
     console.error('[PRODUCT SYNC] push failed', e);
   }
 }
+
 
 
 
@@ -140,79 +157,77 @@ function getFirebaseOverrideState() {
 
 function syncInventoryFromFirebase() {
   // Cloud sync is best-effort.
-  // In this repo, FirebaseBridge module loading may be blocked depending on origin (file:// vs http).
-  // If FirebaseBridge bundle is not ready, we do NOT attempt reads/writes.
+  // Fix: FirebaseBridge.activePath is hard-coded for hair/face/beard.
+  // For products, we temporarily switch activePath to the product path.
 
   try {
-    if (!window.FirebaseBridge) {
+    if (!window.FirebaseBridge || typeof window.FirebaseBridge.connectCloudNode !== 'function') {
       console.warn('[PRODUCT SYNC] FirebaseBridge not present; local-only mode');
       return;
     }
 
-    // Require the same live-bundle pattern used in hair/face/beard pages.
-    // product pages in this environment often do not have __bundle available.
-    const bundle = window.FirebaseBridge.__bundle;
-    if (!bundle || typeof bundle.readStateFromCloud !== 'function') {
-      console.warn('[PRODUCT SYNC] Firebase bundle not ready; local-only mode');
-      return;
-    }
+    const oldPath = window.FirebaseBridge.activePath;
+    window.FirebaseBridge.activePath = FIREBASE_INVENTORY_PATH;
 
+    const config = window.__FIREBASE_CONFIG__ || {};
+    const res = window.FirebaseBridge.connectCloudNode(config);
 
-    const res = window.FirebaseBridge.connectCloudNode(window.__FIREBASE_CONFIG__ || {});
-    if (!res?.success || !res.bundle) {
-      console.warn('[PRODUCT SYNC] Firebase connect failed', res);
+    if (!res?.success || !res.bundle || typeof res.bundle.readStateFromCloud !== 'function') {
+      window.FirebaseBridge.activePath = oldPath;
+      console.warn('[PRODUCT SYNC] Firebase connect/bundle invalid; local-only mode');
       return;
     }
 
     console.info('[PRODUCT SYNC] Reading cloud inventory...');
     console.info('[PRODUCT SYNC] FIREBASE activePath:', window.FirebaseBridge?.activePath);
 
-
     Promise.resolve()
       .then(() => res.bundle.readStateFromCloud())
       .then((cloudState) => {
-        console.info('[PRODUCT SYNC] cloudState keys:', cloudState && typeof cloudState === 'object' ? Object.keys(cloudState) : cloudState);
+        console.info(
+          '[PRODUCT SYNC] cloudState keys:',
+          cloudState && typeof cloudState === 'object' ? Object.keys(cloudState) : cloudState
+        );
 
-        if (!cloudState || typeof cloudState !== 'object') return;
-
-        // With current FirebaseBridge, product data is stored as top-level key-map (to coexist with hair/face/beard).
-        // If we find any top-level item objects, convert them to inventory map.
-        const candidateItems = [];
-        for (const [k, v] of Object.entries(cloudState)) {
-          if (v && typeof v === 'object' && typeof v.name === 'string' && typeof v.type === 'string' && v.stockQty !== undefined) {
-            candidateItems.push(v);
-          }
+        if (!cloudState || typeof cloudState !== 'object') {
+          window.FirebaseBridge.activePath = oldPath;
+          return;
         }
 
-        if (candidateItems.length) {
-          console.info('[PRODUCT SYNC] Found top-level product items. Applying inventory map...');
-          const invMap = {};
-          for (const v of candidateItems) {
-            invMap[v.id || uidSafe(v.name + '_' + v.type)] = v;
-          }
-          setInventory(invMap);
+        // Primary format we write: top-level map (id -> item)
+        // If we find objects that look like items, treat them as the inventory map.
+        const looksLikeItems = Object.values(cloudState).some(
+          (v) => v && typeof v === 'object' && typeof v.name === 'string' && typeof v.type === 'string' && v.stockQty !== undefined
+        );
+
+        if (looksLikeItems) {
+          setInventory(cloudState);
           renderTable();
+          window.FirebaseBridge.activePath = oldPath;
           return;
         }
 
         // Backward compatibility (older wrapper format)
         if (cloudState.product_inventory_v1?.user_state) {
-          console.info('[PRODUCT SYNC] Found product_inventory_v1.user_state. Applying...');
           setInventory(cloudState.product_inventory_v1.user_state);
           renderTable();
+          window.FirebaseBridge.activePath = oldPath;
           return;
         }
 
         console.warn('[PRODUCT SYNC] No recognizable product inventory found in cloudState');
-
+        window.FirebaseBridge.activePath = oldPath;
       })
       .catch((e) => {
         console.error('[PRODUCT SYNC] readStateFromCloud failed', e);
+        window.FirebaseBridge.activePath = oldPath;
       });
   } catch (e) {
     console.error('[PRODUCT SYNC] exception', e);
   }
 }
+
+
 
 
 
