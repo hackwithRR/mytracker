@@ -82,7 +82,22 @@ function getInventory() {
 
 function setInventory(inv) {
   localStorage.setItem(INVENTORY_CACHE_KEY, JSON.stringify(inv));
+  // optional: keep firebase in sync if bundle exists
+  // Important: FirebaseBridge.pushStateToCloud in this repo does NOT accept an override path.
+  // It always pushes to FirebaseBridge.activePath.
+  // So we store as { product_inventory_v1: { user_state: inv } } within the existing activePath.
+  try {
+    const bundle = window.FirebaseBridge?.__bundle;
+    if (bundle && typeof bundle.pushStateToCloud === 'function') {
+      const payload = { product_inventory_v1: { user_state: inv } };
+      bundle.pushStateToCloud(payload);
+    }
+  } catch {
+    // ignore
+  }
+
 }
+
 
 function upsertItem(inv, item) {
   const id = item.id || uidSafe(item.name + '_' + item.type);
@@ -112,43 +127,45 @@ function getFirebaseOverrideState() {
   return null;
 }
 
-async function syncInventoryFromFirebase() {
+function syncInventoryFromFirebase() {
+  // FirebaseBridge in this repo does not support passing an arbitrary path.
+  // So we read/write everything through its hard-coded activePath.
+  // We store product inventory under:
+  //    { product_inventory_v1: { user_state: inv } }
+  // inside that activePath.
+
   try {
     if (!window.FirebaseBridge || typeof window.FirebaseBridge.connectCloudNode !== 'function') return;
+
     const res = window.FirebaseBridge.connectCloudNode(window.__FIREBASE_CONFIG__ || {});
     if (!res?.success || !res.bundle) return;
 
-    // FirebaseBridge reads from its configured activePath.
-    const cloudState = await res.bundle.readStateFromCloud();
+    // Ensure async chain exists.
+    Promise.resolve()
+      .then(() => res.bundle.readStateFromCloud())
+      .then((cloudState) => {
+        if (!cloudState || typeof cloudState !== 'object') return;
 
-    // Your inventory is stored under product_inventory_v1/user_state
-    // but FirebaseBridge.activePath is follicle_matrix_ledger/user_state.
-    // So we support BOTH shapes:
-    // 1) cloudState already equals inventory map
-    // 2) cloudState has product_inventory_v1.user_state nested
-    // 3) cloudState has product_inventory_v1.user_state at key-level
-    let candidate = null;
-    if (cloudState && typeof cloudState === 'object') {
-      if (cloudState.stockQty !== undefined || cloudState.amountPerUse !== undefined || cloudState.type !== undefined) {
-        candidate = cloudState;
-      } else if (cloudState.product_inventory_v1?.user_state) {
-        candidate = cloudState.product_inventory_v1.user_state;
-      } else if (cloudState['product_inventory_v1']?.['user_state']) {
-        candidate = cloudState['product_inventory_v1']?.['user_state'];
-      } else {
-        // If you previously wrote inventory directly to activePath, fall back.
-        candidate = cloudState;
-      }
-    }
+        if (cloudState.product_inventory_v1?.user_state) {
+          setInventory(cloudState.product_inventory_v1.user_state);
+          renderTable();
+          return;
+        }
 
-    if (candidate && typeof candidate === 'object') {
-      setInventory(candidate);
-      renderTable();
-    }
+        // If we stored inventory directly (older format), accept it.
+        if (cloudState && typeof cloudState === 'object' && (cloudState.stockQty !== undefined || cloudState.amountPerUse !== undefined)) {
+          setInventory(cloudState);
+          renderTable();
+        }
+      })
+      .catch(() => {});
   } catch {
     // ignore
   }
 }
+
+
+
 
 
 
@@ -532,7 +549,8 @@ function wireForm() {
 function init() {
   wireForm();
   renderTable();
-  syncInventoryFromFirebase().then(() => renderTable());
+  syncInventoryFromFirebase();
+
 
   // React when storage changes (multi-tab)
   window.addEventListener('storage', (e) => {
