@@ -76,7 +76,13 @@ export function setSettings(next) {
 
 export function getPageSettings(pageKey) {
   const s = getSettings();
-  return s.pages?.[pageKey] || { enabled: true, scheduleTime: '09:00' };
+  const page = s.pages?.[pageKey];
+  const fallback = {
+    enabled: true,
+    scheduleTime: '09:00',
+    tokens: {}
+  };
+  return page && typeof page === 'object' ? { ...fallback, ...page, tokens: page.tokens || {} } : fallback;
 }
 
 export function setPageSettings(pageKey, pageSettings) {
@@ -105,8 +111,7 @@ function computeNextFireTime(hh, mm) {
 }
 
 export function scheduleDailyNotification({ pageKey, hhmm, title, getBodyText }) {
-  // We schedule in the browser while the page is open.
-  // True push would be server-driven; this is best-effort without backend.
+  // Backward-compatible single-time-per-page scheduler.
   const parsed = parseHHMM(hhmm);
   if (!parsed) return () => {};
 
@@ -115,7 +120,6 @@ export function scheduleDailyNotification({ pageKey, hhmm, title, getBodyText })
 
   let timeoutId = null;
   const tick = () => {
-    // Re-check each day
     const cfg2 = getPageSettings(pageKey);
     if (!cfg2?.enabled) return;
 
@@ -128,19 +132,73 @@ export function scheduleDailyNotification({ pageKey, hhmm, title, getBodyText })
       }
     }
 
-    // Schedule next day
     const next = computeNextFireTime(parsed.hh, parsed.mm);
-    const ms = next.getTime() - Date.now();
-    timeoutId = setTimeout(tick, ms);
+    timeoutId = setTimeout(tick, next.getTime() - Date.now());
   };
 
   const next = computeNextFireTime(parsed.hh, parsed.mm);
-  const ms = next.getTime() - Date.now();
-  timeoutId = setTimeout(tick, ms);
+  timeoutId = setTimeout(tick, next.getTime() - Date.now());
 
   return () => {
     if (timeoutId) clearTimeout(timeoutId);
     timeoutId = null;
   };
 }
+
+function normalizeTokenTime(hhmm) {
+  const p = parseHHMM(hhmm);
+  if (!p) return null;
+  return `${String(p.hh).padStart(2,'0')}:${String(p.mm).padStart(2,'0')}`;
+}
+
+export function scheduleTokenNotifications({ pageKey, title, getBodyText }) {
+  // Token-level scheduling: reads page settings tokens[tokenKey].time
+  // and schedules separate daily reminders for each enabled token.
+  // Best-effort browser scheduling while the page is open.
+
+  const cfg = getPageSettings(pageKey);
+  if (!cfg?.enabled) return [];
+
+  const tokens = cfg?.tokens || {};
+  const cleanTokens = Object.keys(tokens)
+    .filter(tk => tokens[tk] && tokens[tk].enabled)
+    .map(tk => ({ token: tk, time: normalizeTokenTime(tokens[tk].time) }))
+    .filter(x => x.time);
+
+  const unsubs = [];
+
+  cleanTokens.forEach(({ token, time }) => {
+    const parsed = parseHHMM(time);
+    if (!parsed) return;
+
+    let timeoutId = null;
+    const tick = () => {
+      const latest = getPageSettings(pageKey);
+      if (!latest?.enabled) return;
+      const latestTok = latest?.tokens?.[token];
+      if (!latestTok?.enabled) return;
+
+      const body = typeof getBodyText === 'function'
+        ? getBodyText({ token })
+        : `Reminder: ${token}`;
+
+      if (body && Notification.permission === 'granted') {
+        try {
+          new Notification(title || 'Nexus Reminder', { body });
+        } catch {}
+      }
+
+      const next = computeNextFireTime(parsed.hh, parsed.mm);
+      timeoutId = setTimeout(tick, next.getTime() - Date.now());
+    };
+
+    const next = computeNextFireTime(parsed.hh, parsed.mm);
+    timeoutId = setTimeout(tick, next.getTime() - Date.now());
+
+    unsubs.push(() => clearTimeout(timeoutId));
+  });
+
+  return unsubs;
+}
+
 

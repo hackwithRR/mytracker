@@ -84,9 +84,10 @@ function setInventory(inv) {
   localStorage.setItem(INVENTORY_CACHE_KEY, JSON.stringify(inv));
 
   // Push to Firebase best-effort.
-  // Fix: ensure writes go to product_inventory_v1/user_state (not hair/face/beard path).
+  // IMPORTANT: FirebaseBridge.bundle.pushStateToCloud() uses FirebaseBridge.activePath at call time.
+  // So we must set activePath BEFORE calling pushStateToCloud.
   try {
-    const payload = { ...inv }; // top-level product keymap
+    const payload = { ...inv };
 
     const bridge = window.FirebaseBridge;
     if (!bridge) return;
@@ -94,22 +95,26 @@ function setInventory(inv) {
     const oldPath = bridge.activePath;
     bridge.activePath = FIREBASE_INVENTORY_PATH;
 
-    // Prefer existing bundle if present.
     const bundle = bridge.__bundle;
+
     if (bundle && typeof bundle.pushStateToCloud === 'function') {
-      Promise.resolve(bundle.pushStateToCloud(payload)).finally(() => {
-        bridge.activePath = oldPath;
-      });
+      // Ensure restore happens even if push fails.
+      Promise.resolve(bundle.pushStateToCloud(payload))
+        .catch(() => {})
+        .finally(() => {
+          bridge.activePath = oldPath;
+        });
       return;
     }
 
-    // Fallback: create a short-lived bundle and push.
     if (typeof bridge.connectCloudNode === 'function') {
       const res = bridge.connectCloudNode(window.__FIREBASE_CONFIG__ || {});
       if (res?.bundle && typeof res.bundle.pushStateToCloud === 'function') {
-        Promise.resolve(res.bundle.pushStateToCloud(payload)).finally(() => {
-          bridge.activePath = oldPath;
-        });
+        Promise.resolve(res.bundle.pushStateToCloud(payload))
+          .catch(() => {})
+          .finally(() => {
+            bridge.activePath = oldPath;
+          });
         return;
       }
     }
@@ -117,11 +122,12 @@ function setInventory(inv) {
     bridge.activePath = oldPath;
   } catch (e) {
     try {
-      window.FirebaseBridge.activePath = window.FirebaseBridge?.activePath;
+      if (window.FirebaseBridge) window.FirebaseBridge.activePath = window.FirebaseBridge.activePath;
     } catch {}
     console.error('[PRODUCT SYNC] push failed', e);
   }
 }
+
 
 
 

@@ -296,7 +296,8 @@
     </div>
 
     <script type="module">
-      import { ensureServiceWorker, requestNotificationPermission, getPageSettings, setPageSettings, scheduleDailyNotification } from './js/push-notify.js';
+      import { ensureServiceWorker, requestNotificationPermission, getPageSettings, setPageSettings, scheduleDailyNotification, scheduleTokenNotifications } from './js/push-notify.js';
+
 
       window.__NEXUS_NOTIF_MODULE = { ensureServiceWorker, requestNotificationPermission, getPageSettings, setPageSettings, scheduleDailyNotification };
     </script>
@@ -543,26 +544,41 @@
               }
 
               function startNotifications() {
-                const hhmm = inpTime?.value || '09:00';
                 const title = 'Nexus Face Reminders';
 
-                // This app uses scheduled daily reminders (best-effort). The body mentions which tokens are enabled.
-                mod?.scheduleDailyNotification?.({
+                // Token-level scheduling: use per-token time inputs.
+                // If token.time missing, fallback to master time.
+                // For now, face.html UI only has one master time; we will reuse it per token.
+                const masterTime = inpTime?.value || '09:00';
+
+                // Save token times back into stored settings (so scheduleTokenNotifications can read it).
+                const pageCfg = mod?.getPageSettings?.(pageKey) || { enabled: true, scheduleTime: masterTime, tokens: {} };
+                pageCfg.enabled = chkMaster ? !!chkMaster.checked : true;
+                pageCfg.scheduleTime = masterTime;
+                pageCfg.tokens = pageCfg.tokens || {};
+
+                document.querySelectorAll('.chkNotifToken').forEach(el => {
+                  const tk = el.getAttribute('data-token');
+                  const enabled = !!el.checked;
+                  pageCfg.tokens[tk] = {
+                    ...(pageCfg.tokens[tk] || {}),
+                    enabled,
+                    time: pageCfg.tokens[tk]?.time || masterTime
+                  };
+                });
+
+                mod?.setPageSettings?.(pageKey, pageCfg);
+
+                // Schedule per token.
+                mod?.scheduleTokenNotifications?.({
                   pageKey,
-                  hhmm,
                   title,
-                  getBodyText: () => {
-                    const enabledTokens = [];
-                    document.querySelectorAll('.chkNotifToken').forEach(el => {
-                      if (el.checked) enabledTokens.push(el.getAttribute('data-token'));
-                    });
-                    if (!enabledTokens.length) return 'No tasks enabled.';
-                    return 'Enabled tasks: ' + enabledTokens.join(', ');
-                  }
+                  getBodyText: ({ token }) => `Enabled task: ${token}`
                 });
               }
 
               startNotifications();
+
             } catch (e) {
               // ignore
             }

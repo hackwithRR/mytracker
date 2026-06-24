@@ -173,11 +173,72 @@
                 </div>
             </section>
 
+            <section class="hud-glass rounded-xl p-4 space-y-2">
+                <div class="flex items-center justify-between border-b border-slate-900 pb-1.5">
+                    <span class="font-hud text-[10px] uppercase text-slate-400 font-bold tracking-wide">Notification Settings</span>
+                    <button id="btnReqNotifPerm" class="px-2 py-1 text-[10px] rounded-lg border border-slate-900/60 bg-slate-950/40 hover:bg-slate-950/70 hover:border-slate-800 text-slate-300">Enable</button>
+                </div>
+
+                <div class="space-y-2">
+                    <label class="flex items-center justify-between gap-3 text-[11px]">
+                        <span class="text-slate-300">Master notifications</span>
+                        <input id="chkNotifMaster" type="checkbox" class="accent-cyan-400" checked />
+                    </label>
+
+                    <div class="border border-slate-900/60 rounded-xl p-2 bg-slate-950/20">
+                        <div class="text-[10px] font-hud text-slate-400 uppercase tracking-widest mb-2">Per-task times</div>
+
+                        <div class="space-y-2">
+                            <div class="flex items-center justify-between gap-3">
+                                <label class="flex items-center gap-2 text-[11px]">
+                                    <input class="chkNotifToken accent-cyan-400" type="checkbox" data-token="W" checked /> <span class="text-slate-200">W-Wash</span>
+                                </label>
+                                <input id="inpNotifTime-W" type="time" value="09:00" class="w-[120px] bg-slate-950/40 border border-slate-900/60 rounded-lg px-2 py-1 outline-none focus:border-cyan-400 text-slate-100 text-[11px]" />
+                            </div>
+
+                            <div class="flex items-center justify-between gap-3">
+                                <label class="flex items-center gap-2 text-[11px]">
+                                    <input class="chkNotifToken accent-cyan-400" type="checkbox" data-token="S" checked /> <span class="text-slate-200">S-Spray</span>
+                                </label>
+                                <input id="inpNotifTime-S" type="time" value="09:00" class="w-[120px] bg-slate-950/40 border border-slate-900/60 rounded-lg px-2 py-1 outline-none focus:border-cyan-400 text-slate-100 text-[11px]" />
+                            </div>
+
+                            <div class="flex items-center justify-between gap-3">
+                                <label class="flex items-center gap-2 text-[11px]">
+                                    <input class="chkNotifToken accent-cyan-400" type="checkbox" data-token="M" checked /> <span class="text-slate-200">M-Tablet</span>
+                                </label>
+                                <input id="inpNotifTime-M" type="time" value="09:00" class="w-[120px] bg-slate-950/40 border border-slate-900/60 rounded-lg px-2 py-1 outline-none focus:border-cyan-400 text-slate-100 text-[11px]" />
+                            </div>
+
+                            <div class="flex items-center justify-between gap-3">
+                                <label class="flex items-center gap-2 text-[11px]">
+                                    <input class="chkNotifToken accent-cyan-400" type="checkbox" data-token="O" checked /> <span class="text-slate-200">O-Oil</span>
+                                </label>
+                                <input id="inpNotifTime-O" type="time" value="09:00" class="w-[120px] bg-slate-950/40 border border-slate-900/60 rounded-lg px-2 py-1 outline-none focus:border-cyan-400 text-slate-100 text-[11px]" />
+                            </div>
+
+                            <div class="flex items-center justify-between gap-3">
+                                <label class="flex items-center gap-2 text-[11px]">
+                                    <input class="chkNotifToken accent-cyan-400" type="checkbox" data-token="D" checked /> <span class="text-slate-200">D-Roller</span>
+                                </label>
+                                <input id="inpNotifTime-D" type="time" value="09:00" class="w-[120px] bg-slate-950/40 border border-slate-900/60 rounded-lg px-2 py-1 outline-none focus:border-cyan-400 text-slate-100 text-[11px]" />
+                            </div>
+                        </div>
+
+                        <div class="mt-2 text-[10px] text-slate-500">Each task can have its own notification time.</div>
+                    </div>
+
+                    <button id="btnSaveNotifSettings" class="w-full px-2 py-2 rounded-lg border border-cyan-400/20 bg-cyan-500/10 hover:bg-cyan-500/15 hover:border-cyan-400/30 text-cyan-200 text-[11px] font-hud font-bold">Save settings</button>
+                </div>
+            </section>
+
+
             <section class="hud-glass rounded-xl p-4 space-y-3">
                 <div class="flex items-center justify-between">
                     <span class="font-hud text-[10px] uppercase text-slate-400 font-bold tracking-wide">System Clearance Progress</span>
                     <span id="lblPercentMetric" class="text-2xl font-black font-hud text-cyan-400 tracking-tighter">0.0%</span>
                 </div>
+
                 <div class="h-1 w-full bg-slate-950 border border-slate-900 rounded-full overflow-hidden">
                     <div id="barPercentMetric" class="h-full bg-gradient-to-r from-cyan-400 to-purple-500 transition-all duration-300" style="width: 0%"></div>
                 </div>
@@ -251,6 +312,7 @@
                 <div class="flex items-center justify-between border-b border-slate-900 pb-1.5">
                     <span class="font-hud text-[10px] uppercase text-slate-400 font-bold tracking-wide">Console Activity Log Feed</span>
                     <span class="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></span>
+                
                 </div>
                 <div id="liveTerminalFeedContainer" class="h-28 overflow-y-auto bg-slate-950 border border-slate-900/80 rounded-lg p-2 font-code text-[10px] text-slate-400 space-y-1 custom-scroll">
                     <div class="text-slate-600">// Engine initialized. Standby for metric confirmation telemetry logs...</div>
@@ -281,21 +343,80 @@
     </div>
 
     <script type="module">
-      import { ensureServiceWorker, requestNotificationPermission, scheduleDailyNotification, getPageSettings } from './js/push-notify.js';
+      import { ensureServiceWorker, requestNotificationPermission, scheduleTokenNotifications, getPageSettings, setPageSettings } from './js/push-notify.js';
       const pageKey = 'hair';
 
       document.addEventListener('DOMContentLoaded', async () => {
         await ensureServiceWorker();
         try { await requestNotificationPermission(); } catch (e) {}
+
         const cfg = getPageSettings(pageKey);
-        scheduleDailyNotification({
-          pageKey,
-          hhmm: (cfg?.scheduleTime || '09:00'),
-          title: 'Hair reminder',
-          getBodyText: () => 'Open Hair page to continue your matrix.'
-        });
+
+
+
+                const chkMaster = document.getElementById('chkNotifMaster');
+
+                if (chkMaster) chkMaster.checked = cfg?.enabled !== false;
+
+                document.querySelectorAll('.chkNotifToken').forEach(el => {
+                  const tk = el.getAttribute('data-token');
+                  const tokenCfg = cfg?.tokens?.[tk];
+                  if (tokenCfg) {
+                    el.checked = !!tokenCfg.enabled;
+
+                    const timeEl = document.getElementById(`inpNotifTime-${tk}`);
+                    if (timeEl && tokenCfg.time) timeEl.value = tokenCfg.time;
+                  } else {
+                    el.checked = true;
+                    const timeEl = document.getElementById(`inpNotifTime-${tk}`);
+                    if (timeEl) timeEl.value = cfg?.scheduleTime || '09:00';
+                  }
+                });
+
+
+        const btnPerm = document.getElementById('btnReqNotifPerm');
+        if (btnPerm) {
+          btnPerm.addEventListener('click', async () => {
+            await requestNotificationPermission();
+          });
+        }
+
+            const btnSave = document.getElementById('btnSaveNotifSettings');
+            if (btnSave) {
+              btnSave.addEventListener('click', async () => {
+                const enabled = chkMaster ? !!chkMaster.checked : true;
+
+                const tokens = {};
+                document.querySelectorAll('.chkNotifToken').forEach(el => {
+                  const tk = el.getAttribute('data-token');
+                  const timeEl = document.getElementById(`inpNotifTime-${tk}`);
+                  const time = timeEl?.value || (getPageSettings(pageKey)?.scheduleTime || '09:00');
+                  tokens[tk] = { enabled: !!el.checked, time };
+                });
+
+                setPageSettings(pageKey, {
+                  enabled,
+                  tokens
+                });
+
+                scheduleTokenNotifications({
+                  pageKey,
+                  title: 'Hair reminder',
+                  getBodyText: ({ token }) => `Enabled task: ${token}`
+                });
+
+                writeTerminalLog('SYSTEM', 'NOTIF: hair settings saved');
+              });
+            }
+
+
+
+        // Single time-per-page notification removed when using token-level notifications.
+        // scheduleDailyNotification({ ... })
+
       });
     </script>
+
 
     <script>
         const globalMatrixDataset = {
