@@ -197,7 +197,10 @@
     };
 
 
+
     let chartTelemetryObject = null;
+    let activeSelectionFilter = 'all';
+
 
     async function syncLedgerFromFirebase() {
       try {
@@ -234,10 +237,16 @@
 
 
     document.addEventListener('DOMContentLoaded', () => {
+      // Render immediately; schedule a second render to avoid mobile timing blanks.
       compileAppInterfaceMatrix();
       runMetricsEngine();
+      requestAnimationFrame(() => {
+        compileAppInterfaceMatrix();
+        runMetricsEngine();
+      });
       syncLedgerFromFirebase();
     });
+
 
 
     function shiftThemeAccent(_) {
