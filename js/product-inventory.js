@@ -1,5 +1,8 @@
 const INVENTORY_CACHE_KEY = 'nexus_product_inventory_v1';
+// Note: FirebaseBridge.activePath in this repo is hard-coded.
+// product inventory sync is best-effort and may require aligning where data is stored.
 const FIREBASE_INVENTORY_PATH = 'product_inventory_v1/user_state';
+
 
 function parseNumber(val) {
   const n = Number(val);
@@ -102,21 +105,51 @@ function exportInventory() {
   a.remove();
 }
 
+function getFirebaseOverrideState() {
+  // Existing FirebaseBridge in this repo is hard-coded to a single activePath.
+  // Its readStateFromCloud() accepts no parameters, so we must not pass an extra path.
+  // Instead we read from the default activePath and extract only what we need.
+  return null;
+}
+
 async function syncInventoryFromFirebase() {
   try {
     if (!window.FirebaseBridge || typeof window.FirebaseBridge.connectCloudNode !== 'function') return;
     const res = window.FirebaseBridge.connectCloudNode(window.__FIREBASE_CONFIG__ || {});
     if (!res?.success || !res.bundle) return;
 
-    const cloudState = await res.bundle.readStateFromCloud(FIREBASE_INVENTORY_PATH + '/user_state');
+    // FirebaseBridge reads from its configured activePath.
+    const cloudState = await res.bundle.readStateFromCloud();
+
+    // Your inventory is stored under product_inventory_v1/user_state
+    // but FirebaseBridge.activePath is follicle_matrix_ledger/user_state.
+    // So we support BOTH shapes:
+    // 1) cloudState already equals inventory map
+    // 2) cloudState has product_inventory_v1.user_state nested
+    // 3) cloudState has product_inventory_v1.user_state at key-level
+    let candidate = null;
     if (cloudState && typeof cloudState === 'object') {
-      setInventory(cloudState);
+      if (cloudState.stockQty !== undefined || cloudState.amountPerUse !== undefined || cloudState.type !== undefined) {
+        candidate = cloudState;
+      } else if (cloudState.product_inventory_v1?.user_state) {
+        candidate = cloudState.product_inventory_v1.user_state;
+      } else if (cloudState['product_inventory_v1']?.['user_state']) {
+        candidate = cloudState['product_inventory_v1']?.['user_state'];
+      } else {
+        // If you previously wrote inventory directly to activePath, fall back.
+        candidate = cloudState;
+      }
+    }
+
+    if (candidate && typeof candidate === 'object') {
+      setInventory(candidate);
       renderTable();
     }
   } catch {
     // ignore
   }
 }
+
 
 
 function buildRow(item) {
