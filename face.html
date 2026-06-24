@@ -446,10 +446,16 @@
         let chartTelemetryObject = null;
 
         document.addEventListener("DOMContentLoaded", () => {
+            // Render immediately, then again on next frame to avoid mobile timing issues.
             compileAppInterfaceMatrix();
             runMetricsEngine();
+            requestAnimationFrame(() => {
+                compileAppInterfaceMatrix();
+                runMetricsEngine();
+            });
             syncLedgerFromFirebase();
         });
+
 
         function shiftThemeAccent(themeToken) {
             const documentElement = document.documentElement;

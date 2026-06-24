@@ -176,7 +176,7 @@
   <script>
     // Beard operations per day:
 
-    // - ZINC/Nuts: every day
+    // - ZINC/Nuts+Seeds: every day
     // - Derma Roller: 8, 20, 32, 44, 56, ... (every 12 days)
     // - Castor Oil: multiples of 6 OR 7
 
@@ -191,7 +191,7 @@
     };
 
     const tokenMeta = {
-      ZINC: { token: 'ZINC', label: 'Zinc/Nuts', accentText: 'text-amber-400', kind: 'ZINC' },
+      ZINC: { token: 'ZINC', label: 'Zinc/Nuts & Seeds', accentText: 'text-amber-400', kind: 'ZINC' },
       ROLLER: { token: 'ROLLER', label: 'Roller', accentText: 'text-amber-400', kind: 'ROLLER' },
       CASTOR: { token: 'CASTOR', label: 'Castor Oil', accentText: 'text-amber-400', kind: 'CASTOR' }
     };
@@ -267,11 +267,15 @@
     }
 
     function getTokensForDay(day) {
+      // Always include nuts + seeds (zinc fuel) daily
       const tokens = ['ZINC'];
+      // Derma roller cadence (8, 20, 32, 44, 56...): day % 12 === 8
       if (isDermaRollerDay(day)) tokens.push('ROLLER');
+      // Castor oil cadence
       if (isCastorDay(day)) tokens.push('CASTOR');
       return tokens;
     }
+
 
     function compileAppInterfaceMatrix() {
       const root = document.getElementById('masterProgrammaticGridRoot');
@@ -363,21 +367,26 @@
 
 
 
-      // Push update to Firebase for real-time sync across devices (best-effort)
-      (async () => {
-        try {
-          const bundle = window.FirebaseBridge?.__bundle;
-          if (bundle && typeof bundle.pushStateToCloud === 'function') {
-            await bundle.pushStateToCloud(cache);
-          }
-        } catch (e) {
-          // ignore
-        }
-      })();
 
+
+    function toggleMatrixNode(nodeUuid, dayIndex, elementToken) {
+      const ledger = loadStateLedger();
+      const state = document.getElementById(nodeUuid).checked;
+      ledger[nodeUuid] = state;
+      localStorage.setItem(LEDGER_KEY, JSON.stringify(ledger));
+
+      colorizeCardFrame(dayIndex);
       writeTerminalLog('ACTION', `DAY ${String(dayIndex).padStart(3, '0')} // NODE [${elementToken}] // CONFIRMATION: ${state ? 'SECURED' : 'PURGED'}`);
+
       runMetricsEngine();
+
+      // Best-effort push to Firebase (if live bundle exists)
+      const bundle = window.FirebaseBridge?.__bundle;
+      if (bundle && typeof bundle.pushStateToCloud === 'function') {
+        bundle.pushStateToCloud(ledger).catch(() => {});
+      }
     }
+
 
 
     function colorizeCardFrame(dayIndex) {
