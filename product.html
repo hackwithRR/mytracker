@@ -20,27 +20,26 @@
     }
   </style>
 
+<script>
+  // Firebase config injected (must exist before FirebaseBridge module initializes)
+  window.__FIREBASE_CONFIG__ = {
+    apiKey: "AIzaSyBkTFg9ijG_hBdpCxvniY2axaFzgSD9Ncw",
+    authDomain: "health-tracker-70506.firebaseapp.com",
+    databaseURL: "https://health-tracker-70506-default-rtdb.firebaseio.com",
+    projectId: "health-tracker-70506",
+    storageBucket: "health-tracker-70506.firebasestorage.app",
+    messagingSenderId: "359208173293",
+    appId: "1:359208173293:web:673917d0047c8c913316e4",
+    measurementId: "G-TG2PKYPS52"
+  };
+</script>
+
 <script type="module">
-    import { FirebaseBridge } from './js/firebase-config.js';
-    window.FirebaseBridge = FirebaseBridge;
-  </script>
-
-
-  <script>
-    // Uses the same Firebase project as existing pages (hair/face/beard).
-    // If you want product inventory to be purely local, delete this block.
-    window.__FIREBASE_CONFIG__ = {
-      apiKey: "AIzaSyBkTFg9ijG_hBdpCxvniY2axaFzgSD9Ncw",
-      authDomain: "health-tracker-70506.firebaseapp.com",
-      databaseURL: "https://health-tracker-70506-default-rtdb.firebaseio.com",
-      projectId: "health-tracker-70506",
-      storageBucket: "health-tracker-70506.firebasestorage.app",
-      messagingSenderId: "359208173293",
-      appId: "1:359208173293:web:673917d0047c8c913316e4",
-      measurementId: "G-TG2PKYPS52"
-    };
-  </script>
+  import { FirebaseBridge } from './js/firebase-config.js';
+  window.FirebaseBridge = FirebaseBridge;
+</script>
 </head>
+
 
 <body class="min-h-screen text-slate-100 font-code bg-[radial-gradient(ellipse_at_top,_var(--tw-gradient-stops))] from-purple-950/20 via-slate-950 to-slate-950 flex flex-col">
 
@@ -240,6 +239,50 @@
   import { FirebaseBridge } from './js/firebase-config.js';
   window.FirebaseBridge = FirebaseBridge;
 </script>
+<script>
+  // Create FirebaseBridge live bundle on this page (so js/product-inventory.js can sync).
+  // Wait until the module script sets window.FirebaseBridge.
+  (function waitForFirebaseBridgeAndInit() {
+    const MAX_MS = 8000;
+    const started = Date.now();
+
+    const tick = () => {
+      try {
+        if (window.FirebaseBridge && typeof window.FirebaseBridge.connectCloudNode === 'function') {
+          const res = window.FirebaseBridge.connectCloudNode(window.__FIREBASE_CONFIG__ || {});
+
+          if (!res || !res.success || !res.bundle) {
+            console.warn('[PRODUCT PAGE] Firebase connect failed; local-only');
+            return;
+          }
+
+          window.FirebaseBridge.__bundle = res.bundle;
+          // js/product-inventory.js will call syncInventoryFromFirebase() on load.
+
+          res.bundle.subscribeStateFromCloud(() => {
+            if (typeof window.dispatchEvent === 'function') {
+              window.dispatchEvent(new Event('product-inventory-cloud-updated'));
+            }
+          });
+          return;
+        }
+
+        if (Date.now() - started > MAX_MS) {
+          console.warn('[PRODUCT PAGE] FirebaseBridge not available after timeout; local-only');
+          return;
+        }
+
+        setTimeout(tick, 200);
+      } catch (e) {
+        console.warn('[PRODUCT PAGE] Firebase init error; local-only', e);
+      }
+    };
+
+    tick();
+  })();
+</script>
+
+
 <script src="./js/product-inventory.js"></script>
 
 </body>

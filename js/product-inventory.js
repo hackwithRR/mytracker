@@ -82,21 +82,32 @@ function getInventory() {
 
 function setInventory(inv) {
   localStorage.setItem(INVENTORY_CACHE_KEY, JSON.stringify(inv));
-  // optional: keep firebase in sync if bundle exists
-  // Important: FirebaseBridge.pushStateToCloud in this repo does NOT accept an override path.
-  // It always pushes to FirebaseBridge.activePath.
-  // So we store as { product_inventory_v1: { user_state: inv } } within the existing activePath.
+
+  // Push to Firebase best-effort.
+  // Some pages may not stash FirebaseBridge.__bundle yet, so we fall back to
+  // creating a short-lived bundle via connectCloudNode.
   try {
+    const payload = { ...inv }; // top-level product keymap
+
     const bundle = window.FirebaseBridge?.__bundle;
     if (bundle && typeof bundle.pushStateToCloud === 'function') {
-      const payload = { product_inventory_v1: { user_state: inv } };
       bundle.pushStateToCloud(payload);
+      return;
     }
-  } catch {
-    // ignore
-  }
 
+    // Fallback: create a new bundle instance and push.
+    if (window.FirebaseBridge && typeof window.FirebaseBridge.connectCloudNode === 'function') {
+      const res = window.FirebaseBridge.connectCloudNode(window.__FIREBASE_CONFIG__ || {});
+      if (res?.bundle && typeof res.bundle.pushStateToCloud === 'function') {
+        res.bundle.pushStateToCloud(payload);
+      }
+    }
+  } catch (e) {
+    console.error('[PRODUCT SYNC] push failed', e);
+  }
 }
+
+
 
 
 function upsertItem(inv, item) {
@@ -128,41 +139,81 @@ function getFirebaseOverrideState() {
 }
 
 function syncInventoryFromFirebase() {
-  // FirebaseBridge in this repo does not support passing an arbitrary path.
-  // So we read/write everything through its hard-coded activePath.
-  // We store product inventory under:
-  //    { product_inventory_v1: { user_state: inv } }
-  // inside that activePath.
+  // Cloud sync is best-effort.
+  // In this repo, FirebaseBridge module loading may be blocked depending on origin (file:// vs http).
+  // If FirebaseBridge bundle is not ready, we do NOT attempt reads/writes.
 
   try {
-    if (!window.FirebaseBridge || typeof window.FirebaseBridge.connectCloudNode !== 'function') return;
+    if (!window.FirebaseBridge) {
+      console.warn('[PRODUCT SYNC] FirebaseBridge not present; local-only mode');
+      return;
+    }
+
+    // Require the same live-bundle pattern used in hair/face/beard pages.
+    // product pages in this environment often do not have __bundle available.
+    const bundle = window.FirebaseBridge.__bundle;
+    if (!bundle || typeof bundle.readStateFromCloud !== 'function') {
+      console.warn('[PRODUCT SYNC] Firebase bundle not ready; local-only mode');
+      return;
+    }
+
 
     const res = window.FirebaseBridge.connectCloudNode(window.__FIREBASE_CONFIG__ || {});
-    if (!res?.success || !res.bundle) return;
+    if (!res?.success || !res.bundle) {
+      console.warn('[PRODUCT SYNC] Firebase connect failed', res);
+      return;
+    }
 
-    // Ensure async chain exists.
+    console.info('[PRODUCT SYNC] Reading cloud inventory...');
+    console.info('[PRODUCT SYNC] FIREBASE activePath:', window.FirebaseBridge?.activePath);
+
+
     Promise.resolve()
       .then(() => res.bundle.readStateFromCloud())
       .then((cloudState) => {
+        console.info('[PRODUCT SYNC] cloudState keys:', cloudState && typeof cloudState === 'object' ? Object.keys(cloudState) : cloudState);
+
         if (!cloudState || typeof cloudState !== 'object') return;
 
+        // With current FirebaseBridge, product data is stored as top-level key-map (to coexist with hair/face/beard).
+        // If we find any top-level item objects, convert them to inventory map.
+        const candidateItems = [];
+        for (const [k, v] of Object.entries(cloudState)) {
+          if (v && typeof v === 'object' && typeof v.name === 'string' && typeof v.type === 'string' && v.stockQty !== undefined) {
+            candidateItems.push(v);
+          }
+        }
+
+        if (candidateItems.length) {
+          console.info('[PRODUCT SYNC] Found top-level product items. Applying inventory map...');
+          const invMap = {};
+          for (const v of candidateItems) {
+            invMap[v.id || uidSafe(v.name + '_' + v.type)] = v;
+          }
+          setInventory(invMap);
+          renderTable();
+          return;
+        }
+
+        // Backward compatibility (older wrapper format)
         if (cloudState.product_inventory_v1?.user_state) {
+          console.info('[PRODUCT SYNC] Found product_inventory_v1.user_state. Applying...');
           setInventory(cloudState.product_inventory_v1.user_state);
           renderTable();
           return;
         }
 
-        // If we stored inventory directly (older format), accept it.
-        if (cloudState && typeof cloudState === 'object' && (cloudState.stockQty !== undefined || cloudState.amountPerUse !== undefined)) {
-          setInventory(cloudState);
-          renderTable();
-        }
+        console.warn('[PRODUCT SYNC] No recognizable product inventory found in cloudState');
+
       })
-      .catch(() => {});
-  } catch {
-    // ignore
+      .catch((e) => {
+        console.error('[PRODUCT SYNC] readStateFromCloud failed', e);
+      });
+  } catch (e) {
+    console.error('[PRODUCT SYNC] exception', e);
   }
 }
+
 
 
 
@@ -549,8 +600,10 @@ function wireForm() {
 function init() {
   wireForm();
   renderTable();
-  syncInventoryFromFirebase();
 
+  // If product.html created the Firebase bundle, sync now.
+  // Otherwise remain local-only.
+  syncInventoryFromFirebase();
 
   // React when storage changes (multi-tab)
   window.addEventListener('storage', (e) => {
