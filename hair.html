@@ -37,6 +37,13 @@
             overflow: auto;
         }
 
+        /* Brand UX language */
+        @import url('./brand-ux.css');
+
+        /* Inject crazy HUD extras */
+        @import url('./crazy-anim.css');
+
+
         .hud-glass {
             background: linear-gradient(135deg, rgba(10, 7, 28, 0.8) 0%, rgba(4, 2, 14, 0.98) 100%);
             backdrop-filter: blur(20px);
@@ -121,9 +128,10 @@
         }
     </style>
 </head>
-<body class="flex flex-col text-xs text-slate-300 font-code bg-[#010204] min-h-screen">
+<body class="flex flex-col text-xs text-slate-300 font-code bg-[#010204] min-h-screen" data-crazy-page="hair" style="--accent-color:#39FF14; --accent-glow:rgba(57,255,20,0.35);">
 
     <header id="topNavbar" class="h-16 flex-shrink-0 hud-glass border-b border-slate-900 px-3 sm:px-6 flex items-center justify-between z-50">
+
 
         <div class="flex items-center gap-3 min-w-0 flex-1"> 
 
@@ -920,5 +928,13 @@ const unsubs = scheduleTokenNotifications({
         })();
     </script>
 
+
+    <div class="crazy-hud-scan" aria-hidden="true"></div>
+
+    <script type="module">
+      import './js/crazy-anim.js';
+      window.addEventListener('DOMContentLoaded', () => window.CrazyAnim?.init?.());
+    </script>
 </body>
 </html>
+

@@ -43,10 +43,13 @@
     mod.bindNotifToasts?.();
   } catch {}
 </script>
+  <link rel="stylesheet" href="./brand-ux.css">
+  <link rel="stylesheet" href="./crazy-anim.css">
+  <script type="module" src="./js/crazy-anim.js"></script>
 </head>
 
 
-<body class="min-h-screen text-slate-100 font-code bg-[radial-gradient(ellipse_at_top,_var(--tw-gradient-stops))] from-purple-950/20 via-slate-950 to-slate-950 flex flex-col">
+<body class="min-h-screen text-slate-100 font-code bg-[radial-gradient(ellipse_at_top,_var(--tw-gradient-stops))] from-purple-950/20 via-slate-950 to-slate-950 flex flex-col" data-crazy-page="product">
 
 <header id="topNavbar" class="h-16 flex-shrink-0 hud-glass border-b border-slate-900 px-4 sm:px-6 flex items-center justify-between z-50">
   <div class="flex items-center gap-3 min-w-0 flex-1">
@@ -290,6 +293,11 @@
 
 <script src="./js/product-inventory.js"></script>
 
+  <div class="crazy-hud-scan" aria-hidden="true"></div>
+  <script type="module">
+    import './js/crazy-anim.js';
+    window.addEventListener('DOMContentLoaded', () => window.CrazyAnim?.init?.());
+  </script>
 </body>
 </html>
 

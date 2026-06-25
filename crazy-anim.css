@@ -1,0 +1,84 @@
+/* Shared crazy-animated HUD effects */
+
+:root {
+  --accent-color: #00f2fe;
+  --accent-glow: rgba(0, 242, 254, 0.35);
+}
+
+/* Extra animated overlays (kept cheap) */
+.crazy-hud-scan {
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  z-index: 1;
+  background:
+    repeating-linear-gradient(
+      180deg,
+      rgba(255,255,255,0.04) 0px,
+      rgba(255,255,255,0.04) 1px,
+      rgba(0,0,0,0) 2px,
+      rgba(0,0,0,0) 6px
+    );
+  opacity: 0.10;
+  mix-blend-mode: overlay;
+}
+
+/* Liquid border glow animation */
+@keyframes liquidBorder {
+  0% { filter: hue-rotate(0deg); transform: translateZ(0); }
+  50% { filter: hue-rotate(24deg); }
+  100% { filter: hue-rotate(0deg); }
+}
+
+.hud-glass {
+  position: relative;
+}
+
+.hud-glass:before {
+  content: '';
+  position: absolute;
+  inset: -1px;
+  border-radius: inherit;
+  padding: 1px;
+  background: linear-gradient(120deg,
+    rgba(0,242,254,0.0),
+    rgba(0,242,254,0.18),
+    rgba(255,0,127,0.16),
+    rgba(168,85,247,0.12),
+    rgba(0,242,254,0.0)
+  );
+  opacity: 0;
+  transition: opacity 280ms ease;
+  animation: liquidBorder 4s ease-in-out infinite;
+  pointer-events: none;
+}
+
+.hud-glass:hover:before {
+  opacity: 0.9;
+}
+
+/* Neon button press */
+button {
+  transform: translateZ(0);
+}
+
+button:active {
+  transform: translateY(1px) scale(0.99);
+}
+
+/* Matrix node pulse on check */
+.matrix-checkbox:checked + label .status-glow {
+  animation: crazyNodePulse 520ms ease-out both;
+}
+
+@keyframes crazyNodePulse {
+  0% { transform: scale(1); box-shadow: 0 0 0px var(--accent-glow); opacity: 1; }
+  60% { transform: scale(2.2); box-shadow: 0 0 18px var(--accent-glow); opacity: 1; }
+  100% { transform: scale(1); box-shadow: 0 0 0px var(--accent-glow); opacity: 0.85; }
+}
+
+/* Reduce motion support */
+@media (prefers-reduced-motion: reduce) {
+  * { animation-duration: 0.001ms !important; animation-iteration-count: 1 !important; transition-duration: 0.001ms !important; scroll-behavior: auto !important; }
+}
+

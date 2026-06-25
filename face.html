@@ -32,6 +32,8 @@
 
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Orbitron:wght@400;600;800;900&family=JetBrains+Mono:wght@400;700&display=swap');
+        @import url('./brand-ux.css');
+        @import url('./crazy-anim.css');
         .font-hud { font-family: 'Orbitron', sans-serif; }
         .font-code { font-family: 'JetBrains Mono', sans-serif; }
         
@@ -78,7 +80,7 @@
         .custom-scroll::-webkit-scrollbar-thumb:hover { background: #1e293b; }
     </style>
 </head>
-<body class="flex flex-col text-xs text-slate-300 font-code bg-[#010204] min-h-screen">
+<body class="flex flex-col text-xs text-slate-300 font-code bg-[#010204] min-h-screen" data-crazy-page="face">
 
     <header id="topNavbar" class="h-16 flex-shrink-0 hud-glass border-b border-slate-900 px-3 sm:px-6 flex items-center justify-between z-50">
         <div class="flex items-center gap-3 min-w-0 flex-1"> 
@@ -1004,6 +1006,14 @@ const swOk = await mod?.ensureServiceWorker?.();
         }
 
     </script>
+
+    <div class="crazy-hud-scan" aria-hidden="true"></div>
+
+    <script type="module">
+      import './js/crazy-anim.js';
+      window.addEventListener('DOMContentLoaded', () => window.CrazyAnim?.init?.());
+    </script>
 </body>
 </html>
+
 

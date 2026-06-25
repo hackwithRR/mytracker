@@ -5,6 +5,8 @@
     --neon-magenta: #ff007f;
     --neon-amber: #f59e0b;
     --glass-panel: rgba(9, 5, 23, 0.78);
+    --accent-color: var(--neon-cyan);
+    --accent-glow: rgba(0, 242, 254, 0.35);
 }
 
 body {
@@ -75,6 +77,12 @@ body {
     from { opacity: 0; transform: translateY(12px); }
     to { opacity: 1; transform: translateY(0); }
 }
+
+/* Brand UX language */
+@import url('./brand-ux.css');
+
+/* Crazy HUD extras */
+@import url('./crazy-anim.css');
 
 /* Custom Scrollbar Optimization */
 ::-webkit-scrollbar {

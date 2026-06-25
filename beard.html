@@ -1,5 +1,7 @@
 <!DOCTYPE html>
 <html lang="en" class="h-full bg-[#020408] text-slate-100 selection:bg-amber-500 selection:text-slate-950">
+
+    <script type="module" src="./js/crazy-anim.js"></script>
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
@@ -8,8 +10,10 @@
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css" />
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 
-  <style>
+    <style>
     @import url('https://fonts.googleapis.com/css2?family=Orbitron:wght@400;600;800;900&family=JetBrains+Mono:wght@400;700&display=swap');
+    @import url('./brand-ux.css');
+    @import url('./crazy-anim.css');
     .font-hud { font-family: 'Orbitron', sans-serif; }
     .font-code { font-family: 'JetBrains Mono', sans-serif; }
 
@@ -50,7 +54,7 @@
   </style>
 </head>
 
-<body class="flex flex-col text-xs text-slate-300 font-code bg-[#010204] min-h-screen">
+<body class="flex flex-col text-xs text-slate-300 font-code bg-[#010204] min-h-screen" data-crazy-page="beard">
 
   <header id="topNavbar" class="h-16 flex-shrink-0 hud-glass border-b border-slate-900 px-3 sm:px-6 flex items-center justify-between z-50">
     <div class="flex items-center gap-3 min-w-0 flex-1">
@@ -687,6 +691,12 @@ function startNotifications() {
     }
 
   </script>
+    <div class="crazy-hud-scan" aria-hidden="true"></div>
+
+    <script type="module">
+      import './js/crazy-anim.js';
+      window.addEventListener('DOMContentLoaded', () => window.CrazyAnim?.init?.());
+    </script>
 </body>
 </html>
 

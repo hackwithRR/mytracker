@@ -1,0 +1,223 @@
+
+/* =========================================================
+   BLACKBOXA I • GLOBAL DARK CLAY + SKEUO PRIMITIVES
+   - immersive obsidian canvas
+   - consistent light source: top-left
+   - interactive accent uses CSS vars: --accent-color / --accent-glow
+   ========================================================= */
+
+:root{
+  /* Lighting direction: top-left */
+  --light-x: 18px;
+  --light-y: 18px;
+
+  /* Base canvas */
+  --bg0: #08070B;
+  --bg1: #090022;
+
+  /* Surfaces */
+  --surface0: #08070B;
+  --surface1: #121118;
+  --surface2: #0f0e14;
+
+  /* Accents */
+  --neon-cyan: #00f2fe;
+  --neon-purple: #bc00dd;
+  --neon-magenta: #ff007f;
+  --neon-amber: #f59e0b;
+  --accent-color: var(--neon-cyan);
+  --accent-glow: rgba(0, 242, 254, 0.40);
+
+  /* Typography */
+  --text: rgba(241, 245, 249, 0.95);
+  --muted: rgba(148, 163, 184, 0.85);
+
+  /* Motion */
+  --t-quick: 180ms;
+  --t: 300ms;
+  --ease: cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+body{
+  background-color: var(--bg0);
+  background-image:
+    radial-gradient(1200px 700px at 12% 10%, rgba(0,242,254,0.16), transparent 50%),
+    radial-gradient(900px 600px at 85% 22%, rgba(255,0,127,0.14), transparent 55%),
+    radial-gradient(1100px 760px at 46% 92%, rgba(188,0,221,0.12), transparent 58%),
+    linear-gradient(180deg, var(--bg1), var(--bg0));
+  color: var(--text);
+  overflow-x: hidden;
+}
+
+/* =========================================================
+   Skeuomorphic “inset glass” panels
+   ========================================================= */
+
+.hud-glass{
+  position: relative;
+  background:
+    linear-gradient(135deg, rgba(18, 16, 32, 0.78), rgba(8, 7, 15, 0.88));
+  border: 1px solid rgba(255,255,255,0.08);
+  backdrop-filter: blur(18px) saturate(140%) contrast(110%);
+  -webkit-backdrop-filter: blur(18px) saturate(140%) contrast(110%);
+  box-shadow:
+    0 24px 70px rgba(0,0,0,0.45),
+    0 0 0 1px rgba(0,242,254,0.06),
+    inset 8px 8px 18px rgba(255,255,255,0.07),
+    inset -10px -18px 30px rgba(0,0,0,0.42);
+}
+
+.hud-glass:before{
+  content:'';
+  position:absolute;
+  inset:-1px;
+  border-radius: inherit;
+  pointer-events:none;
+  background: linear-gradient(90deg,
+    rgba(0,242,254,0.0), rgba(0,242,254,0.34), rgba(255,0,127,0.30), rgba(188,0,221,0.0)
+  );
+  filter: blur(0.2px) saturate(140%);
+  opacity: .75;
+  animation: brandBorderDrift 3.8s ease-in-out infinite;
+}
+
+@keyframes brandBorderDrift{
+  0%{ transform: translateX(-6px); opacity:0.55; }
+  50%{ transform: translateX(10px); opacity:0.95; }
+  100%{ transform: translateX(-6px); opacity:0.55; }
+}
+
+.hud-glass:after{
+  content:'';
+  position:absolute;
+  inset: 1px;
+  border-radius: inherit;
+  pointer-events:none;
+  background:
+    radial-gradient(900px 280px at 18% 10%, rgba(0,242,254,0.22), rgba(0,0,0,0) 60%),
+    radial-gradient(900px 280px at 88% 0%, rgba(255,0,127,0.18), rgba(0,0,0,0) 55%),
+    linear-gradient(180deg, rgba(255,255,255,0.06), rgba(0,0,0,0));
+  opacity: .9;
+}
+
+/* =========================================================
+   Claymorphism primitives (interactive)
+   ========================================================= */
+
+/* Deterministic top-left highlight + bottom-right depth (light dir!) */
+.clay-card{
+  border-radius: 26px;
+  background:
+    linear-gradient(180deg, rgba(18, 15, 35, 0.85), rgba(10, 8, 18, 0.92));
+  border: 1px solid rgba(255,255,255,0.06);
+  box-shadow:
+    0 20px 50px rgba(0,0,0,0.42),
+    inset 10px 10px 26px rgba(255,255,255,0.10),
+    inset -14px -18px 34px rgba(0,0,0,0.50);
+  transition: transform var(--t) var(--ease), box-shadow var(--t) var(--ease), border-color var(--t) var(--ease), background var(--t) var(--ease);
+}
+
+.clay-card:hover{
+  transform: translateY(-3px);
+  box-shadow:
+    0 26px 70px rgba(0,0,0,0.52),
+    inset 10px 10px 26px rgba(255,255,255,0.12),
+    inset -14px -18px 34px rgba(0,0,0,0.52),
+    0 0 40px rgba(0,242,254,0.10);
+  border-color: rgba(255,255,255,0.10);
+}
+
+.clay-press{
+  transform: translateY(2px) !important;
+  box-shadow:
+    0 12px 35px rgba(0,0,0,0.55),
+    inset 6px 6px 18px rgba(0,0,0,0.45),
+    inset -6px -10px 22px rgba(255,255,255,0.06);
+}
+
+.clay-button{
+  border-radius: 24px;
+  background:
+    linear-gradient(180deg, rgba(18, 15, 35, 0.86), rgba(8, 7, 16, 0.96));
+  border: 1px solid rgba(255,255,255,0.08);
+  color: rgba(236, 254, 255, 0.96);
+  box-shadow:
+    0 18px 44px rgba(0,0,0,0.44),
+    inset 10px 10px 22px rgba(255,255,255,0.10),
+    inset -12px -18px 30px rgba(0,0,0,0.50);
+  transition: transform var(--t-quick) var(--ease), box-shadow var(--t-quick) var(--ease), border-color var(--t-quick) var(--ease), filter var(--t-quick) var(--ease);
+}
+
+.clay-button:hover{
+  border-color: rgba(255,255,255,0.14);
+  box-shadow:
+    0 22px 58px rgba(0,0,0,0.48),
+    inset 10px 10px 22px rgba(255,255,255,0.12),
+    inset -12px -18px 30px rgba(0,0,0,0.52),
+    0 0 45px rgba(0,242,254,0.12);
+}
+
+.clay-button:active,
+button.clay-button:active{ 
+  transform: translateY(2px);
+  box-shadow:
+    0 12px 35px rgba(0,0,0,0.55),
+    inset 6px 6px 18px rgba(0,0,0,0.46),
+    inset -6px -10px 22px rgba(255,255,255,0.06);
+}
+
+/* Neon glow state */
+.neon-focus{
+  outline: none;
+  border-color: rgba(255,255,255,0.16) !important;
+  box-shadow:
+    0 0 0 1px rgba(255,255,255,0.08),
+    0 0 0 3px rgba(0,242,254,0.10),
+    0 0 48px var(--accent-glow),
+    inset 10px 10px 22px rgba(255,255,255,0.10),
+    inset -14px -18px 34px rgba(0,0,0,0.50);
+}
+
+/* =========================================================
+   Skeuomorphic inputs
+   ========================================================= */
+
+input[type="text"],
+input[type="number"],
+input[type="time"],
+input[type="date"],
+input[type="file"],
+select,
+textarea{
+  border-radius: 18px;
+  border: 1px solid rgba(255,255,255,0.08);
+  background:
+    linear-gradient(180deg, rgba(12, 10, 24, 0.78), rgba(6, 5, 12, 0.92));
+  color: rgba(241,245,249,0.95);
+  box-shadow:
+    inset 12px 12px 26px rgba(0,0,0,0.40),
+    inset -10px -14px 22px rgba(255,255,255,0.05);
+  transition: box-shadow var(--t) var(--ease), border-color var(--t) var(--ease), transform var(--t) var(--ease);
+}
+
+input:focus,
+select:focus,
+textarea:focus{
+  outline: none;
+  border-color: rgba(255,255,255,0.18) !important;
+  box-shadow:
+    inset 12px 12px 26px rgba(0,0,0,0.34),
+    inset -10px -14px 22px rgba(255,255,255,0.06),
+    0 0 0 1px rgba(255,255,255,0.08),
+    0 0 0 3px rgba(0,242,254,0.14),
+    0 0 52px var(--accent-glow);
+}
+
+/* =========================================================
+   Motion + accessibility
+   ========================================================= */
+@media (prefers-reduced-motion: reduce){
+  *{ animation: none !important; transition: none !important; }
+}
+
+
