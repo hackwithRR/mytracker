@@ -37,6 +37,11 @@
 <script type="module">
   import { FirebaseBridge } from './js/firebase-config.js';
   window.FirebaseBridge = FirebaseBridge;
+
+  try {
+    const mod = await import('./js/notif-debug-ui.js');
+    mod.bindNotifToasts?.();
+  } catch {}
 </script>
 </head>
 

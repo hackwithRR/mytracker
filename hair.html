@@ -346,8 +346,19 @@
       import { ensureServiceWorker, requestNotificationPermission, scheduleTokenNotifications, getPageSettings, setPageSettings } from './js/push-notify.js';
       const pageKey = 'hair';
 
-      document.addEventListener('DOMContentLoaded', async () => {
-        await ensureServiceWorker();
+document.addEventListener('DOMContentLoaded', async () => {
+        try {
+          // bind toast events from push-notify
+          const mod = await import('./js/notif-debug-ui.js');
+          mod.bindNotifToasts?.();
+        } catch {}
+
+        const swOk = await ensureServiceWorker();
+        if (!swOk) {
+          writeTerminalLog('ERROR', 'NOTIF: service worker registration failed');
+        } else {
+          writeTerminalLog('SYSTEM', 'NOTIF: service worker registered');
+        }
         try { await requestNotificationPermission(); } catch (e) {}
 
         const cfg = getPageSettings(pageKey);
@@ -399,13 +410,13 @@
                   tokens
                 });
 
-                scheduleTokenNotifications({
+const unsubs = scheduleTokenNotifications({
                   pageKey,
                   title: 'Hair reminder',
                   getBodyText: ({ token }) => `Enabled task: ${token}`
                 });
 
-                writeTerminalLog('SYSTEM', 'NOTIF: hair settings saved');
+                writeTerminalLog('SYSTEM', `NOTIF: hair settings saved + scheduler started (${Array.isArray(unsubs) ? unsubs.length : '1'})`);
               });
             }
 

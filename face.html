@@ -503,9 +503,20 @@
             // Notifications
             try {
               const mod = window.__NEXUS_NOTIF_MODULE;
-              await mod?.ensureServiceWorker?.();
+const swOk = await mod?.ensureServiceWorker?.();
 
-              const pageKey = 'face_v3';
+              if (!swOk) {
+                writeTerminalLog('ERROR', 'NOTIF: service worker registration failed');
+              } else {
+                writeTerminalLog('SYSTEM', 'NOTIF: service worker registered');
+              }
+
+            const pageKey = 'face_v3';
+
+            try {
+              const mod = await import('./js/notif-debug-ui.js');
+              mod.bindNotifToasts?.();
+            } catch {}
               const cfg = mod?.getPageSettings?.(pageKey) || { enabled: true, scheduleTime: '09:00', tokens: {} };
 
               const chkMaster = document.getElementById('chkNotifMaster');

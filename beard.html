@@ -281,9 +281,33 @@
       // Notifications
       try {
         const mod = window.__NEXUS_NOTIF_MODULE;
-        await mod?.ensureServiceWorker?.();
+const ok = await mod?.ensureServiceWorker?.();
+
+          if (!ok) {
+            // visible debugging fallback
+            const c = document.getElementById('liveTerminalFeedContainer');
+            if (c) {
+              const d = document.createElement('div');
+              d.className = 'text-rose-400';
+              d.textContent = '[NOTIF] service worker registration failed';
+              c.appendChild(d);
+            }
+          } else {
+            const c = document.getElementById('liveTerminalFeedContainer');
+            if (c) {
+              const d = document.createElement('div');
+              d.className = 'text-cyan-400';
+              d.textContent = '[NOTIF] service worker registered';
+              c.appendChild(d);
+            }
+          }
 
         const pageKey = 'beard_v3';
+
+        try {
+          const mod = await import('./js/notif-debug-ui.js');
+          mod.bindNotifToasts?.();
+        } catch {}
         const cfg = mod?.getPageSettings?.(pageKey) || { enabled: true, scheduleTime: '09:00', tokens: {} };
 
         const chkMaster = document.getElementById('chkNotifMaster');
@@ -314,26 +338,36 @@
             const enabled = chkMaster ? !!chkMaster.checked : true;
             const scheduleTime = inpTime?.value || '09:00';
             mod?.setPageSettings?.(pageKey, { enabled, scheduleTime, tokens });
-            startNotifications();
-            writeTerminalLog('SYSTEM', 'NOTIF: beard settings saved');
+startNotifications();
+            writeTerminalLog('SYSTEM', 'NOTIF: beard settings saved + scheduler started');
           });
         }
 
-        function startNotifications() {
-          const hhmm = inpTime?.value || '09:00';
+function startNotifications() {
+          // Use token-level scheduler so token checkboxes actually enable/disable reminders.
           const title = 'Nexus Beard Reminders';
-          mod?.scheduleDailyNotification?.({
+          const masterTime = inpTime?.value || '09:00';
+
+          // Store token times (all share masterTime for now, because beard UI has one time input).
+          const pageCfg = mod?.getPageSettings?.(pageKey) || { enabled: true, scheduleTime: masterTime, tokens: {} };
+          pageCfg.enabled = chkMaster ? !!chkMaster.checked : true;
+          pageCfg.scheduleTime = masterTime;
+          pageCfg.tokens = pageCfg.tokens || {};
+
+          document.querySelectorAll('.chkNotifToken').forEach(el => {
+            const tk = el.getAttribute('data-token');
+            pageCfg.tokens[tk] = {
+              enabled: !!el.checked,
+              time: masterTime
+            };
+          });
+
+          mod?.setPageSettings?.(pageKey, pageCfg);
+
+          mod?.scheduleTokenNotifications?.({
             pageKey,
-            hhmm,
             title,
-            getBodyText: () => {
-              const enabledTokens = [];
-              document.querySelectorAll('.chkNotifToken').forEach(el => {
-                if (el.checked) enabledTokens.push(el.getAttribute('data-token'));
-              });
-              if (!enabledTokens.length) return 'No tasks enabled.';
-              return 'Enabled tasks: ' + enabledTokens.join(', ');
-            }
+            getBodyText: ({ token }) => `Enabled task: ${token}`
           });
         }
 

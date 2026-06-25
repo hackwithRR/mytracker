@@ -48,9 +48,36 @@ export function requestNotificationPermission() {
 export async function ensureServiceWorker() {
   if (!('serviceWorker' in navigator)) return false;
   try {
-    await navigator.serviceWorker.register('/sw.js');
-    return true;
-  } catch {
+    // Prefer registering from the web root (most WebView/Capacitor setups).
+    const preferredUrl = new URL('sw.js', window.location.origin + '/').toString();
+
+    // Also keep a fallback to relative-to-current-path URL.
+    const fallbackUrl = new URL('sw.js', window.location.href).toString();
+
+    try {
+      window.dispatchEvent(
+        new CustomEvent('nexus-notif:toast', { detail: { message: `NOTIF SW register try: ${preferredUrl}` } })
+      );
+      await navigator.serviceWorker.register(preferredUrl);
+      return true;
+    } catch (e1) {
+      window.dispatchEvent(
+        new CustomEvent('nexus-notif:toast', { detail: { message: `NOTIF SW register failed at root. trying fallback` } })
+      );
+
+      window.dispatchEvent(
+        new CustomEvent('nexus-notif:toast', { detail: { message: `NOTIF SW error: ${String(e1 && e1.message ? e1.message : e1)}` } })
+      );
+
+      await navigator.serviceWorker.register(fallbackUrl);
+      return true;
+    }
+  } catch (e) {
+    try {
+      window.dispatchEvent(
+        new CustomEvent('nexus-notif:toast', { detail: { message: `NOTIF SW register fatal: ${String(e && e.message ? e.message : e)}` } })
+      );
+    } catch {}
     return false;
   }
 }
@@ -111,6 +138,8 @@ function computeNextFireTime(hh, mm) {
 }
 
 export function scheduleDailyNotification({ pageKey, hhmm, title, getBodyText }) {
+  // helper for debug: quick toast bind if module not loaded
+  try { window.dispatchEvent(new CustomEvent('nexus-notif:toast', { detail: { message: 'NOTIF scheduler initialized (daily)' } })); } catch {}
   // Backward-compatible single-time-per-page scheduler.
   const parsed = parseHHMM(hhmm);
   if (!parsed) return () => {};
@@ -152,6 +181,7 @@ function normalizeTokenTime(hhmm) {
 }
 
 export function scheduleTokenNotifications({ pageKey, title, getBodyText }) {
+  try { window.dispatchEvent(new CustomEvent('nexus-notif:toast', { detail: { message: 'NOTIF scheduler initialized (token)' } })); } catch {}
   // Token-level scheduling: reads page settings tokens[tokenKey].time
   // and schedules separate daily reminders for each enabled token.
   // Best-effort browser scheduling while the page is open.
@@ -168,6 +198,8 @@ export function scheduleTokenNotifications({ pageKey, title, getBodyText }) {
   const unsubs = [];
 
   cleanTokens.forEach(({ token, time }) => {
+    try { window.dispatchEvent(new CustomEvent('nexus-notif:toast', { detail: { message: `NOTIF scheduled token=${token} time=${time}` } })); } catch {}
+
     const parsed = parseHHMM(time);
     if (!parsed) return;
 
@@ -184,6 +216,8 @@ export function scheduleTokenNotifications({ pageKey, title, getBodyText }) {
 
       if (body && Notification.permission === 'granted') {
         try {
+          // Debug: also broadcast to UI so you can see it fired.
+          window.dispatchEvent(new CustomEvent('nexus-notif:toast', { detail: { message: `NOTIF FIRED: ${token}` } }));
           new Notification(title || 'Nexus Reminder', { body });
         } catch {}
       }
