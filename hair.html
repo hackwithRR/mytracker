@@ -613,6 +613,20 @@ const unsubs = scheduleTokenNotifications({
             return data ? JSON.parse(data) : {};
         }
 
+        let __matrixRerenderScheduled = false;
+        function scheduleMatrixRerender() {
+            if (__matrixRerenderScheduled) return;
+            __matrixRerenderScheduled = true;
+            // Let UI breathe; then rebuild + metrics once.
+            setTimeout(() => {
+                __matrixRerenderScheduled = false;
+                try {
+                    compileAppInterfaceMatrix();
+                    runMetricsEngine();
+                } catch {}
+            }, 120);
+        }
+
         async function syncLedgerFromFirebase() {
             try {
                 // firebase-config.js exports FirebaseBridge as an ES module.
@@ -638,7 +652,34 @@ const unsubs = scheduleTokenNotifications({
                 writeTerminalLog('SYSTEM', `CLOUD: read complete. entries=${cloudSize}`);
 
                 if (cloudState && typeof cloudState === 'object') {
-                    localStorage.setItem('nexus_v3_matrix_ledger', JSON.stringify(cloudState));
+                    // Normalize Firebase snapshot shape to flat map: { [nodeId]: boolean }
+                    // Some snapshots may come wrapped like: { user_state: { ... } } or { nexus_v3_matrix_ledger: { ... } }.
+                    const topKeys = Object.keys(cloudState);
+                    const logSafe = (x) => {
+                      try { return JSON.stringify(x); } catch { return String(x); }
+                    };
+                    writeTerminalLog('SYSTEM', `CLOUD: snapshot keys(sample)=${topKeys.slice(0,10).join(',')} total=${topKeys.length}`);
+
+                    let normalized = cloudState;
+                    if (!Object.prototype.hasOwnProperty.call(normalized, Object.keys(normalized)[0] || '')) {
+                      normalized = cloudState;
+                    }
+
+                    // unwrap common wrappers
+                    if (cloudState.user_state && typeof cloudState.user_state === 'object') normalized = cloudState.user_state;
+                    else if (cloudState.nexus_v3_matrix_ledger && typeof cloudState.nexus_v3_matrix_ledger === 'object') normalized = cloudState.nexus_v3_matrix_ledger;
+                    else if (cloudState.follicle_matrix_ledger && typeof cloudState.follicle_matrix_ledger === 'object') {
+                      // if nested further
+                      normalized = cloudState.follicle_matrix_ledger.user_state && typeof cloudState.follicle_matrix_ledger.user_state === 'object'
+                        ? cloudState.follicle_matrix_ledger.user_state
+                        : cloudState.follicle_matrix_ledger;
+                    }
+
+                    // ensure we end up with a flat object
+                    if (!normalized || typeof normalized !== 'object') normalized = {};
+                    localStorage.setItem('nexus_v3_matrix_ledger', JSON.stringify(normalized));
+
+                    // render AFTER ledger is stored
                     compileAppInterfaceMatrix();
                     runMetricsEngine();
                 }
@@ -656,12 +697,24 @@ const unsubs = scheduleTokenNotifications({
                     }
 
                     try {
+                        // Normalize live update too (same rules as one-time load)
+                        let normalized = updated;
+                        if (updated.user_state && typeof updated.user_state === 'object') normalized = updated.user_state;
+                        else if (updated.nexus_v3_matrix_ledger && typeof updated.nexus_v3_matrix_ledger === 'object') normalized = updated.nexus_v3_matrix_ledger;
+                        else if (updated.follicle_matrix_ledger && typeof updated.follicle_matrix_ledger === 'object') {
+                          normalized = updated.follicle_matrix_ledger.user_state && typeof updated.follicle_matrix_ledger.user_state === 'object'
+                            ? updated.follicle_matrix_ledger.user_state
+                            : updated.follicle_matrix_ledger;
+                        }
+
                         const prev = loadStateLedger();
-                        const merged = { ...prev, ...updated };
+                        const merged = { ...prev, ...(normalized && typeof normalized === 'object' ? normalized : {}) };
                         writeTerminalLog('SYSTEM', `CLOUD: live update merged. prev=${Object.keys(prev).length} upd=${sz} now=${Object.keys(merged).length}`);
                         localStorage.setItem('nexus_v3_matrix_ledger', JSON.stringify(merged));
-                        compileAppInterfaceMatrix();
-                        runMetricsEngine();
+
+                            // Full re-render is expensive on mobile; keep it but debounce it a bit.
+                        scheduleMatrixRerender();
+                        // Avoid immediate expensive operations here.
                     } catch (e) {
                         writeTerminalLog('ERROR', `CLOUD: merge failed (${String(e && e.message ? e.message : e)})`);
                     }
@@ -701,17 +754,11 @@ const unsubs = scheduleTokenNotifications({
             (async () => {
                 try {
                     const bundle = window.FirebaseBridge?.__bundle;
-                    if (bundle && typeof bundle.pushStateToCloud === 'function' && typeof bundle.readStateFromCloud === 'function') {
-                        // 1) Push update
+                    if (bundle && typeof bundle.pushStateToCloud === 'function') {
+                        // 1) Push update (best-effort)
                         await bundle.pushStateToCloud(state);
-
-                        // 2) Re-read canonical cloud state and apply locally
-                        const canonical = await bundle.readStateFromCloud();
-                        if (canonical && typeof canonical === 'object') {
-                            localStorage.setItem('nexus_v3_matrix_ledger', JSON.stringify(canonical));
-                            compileAppInterfaceMatrix();
-                            runMetricsEngine();
-                        }
+                        // 2) Do NOT force full re-render here; keep UI smooth.
+                        // Firebase will come back via subscribeStateFromCloud (or local storage is already updated).
                     }
                 } catch (e) {
                     // ignore
@@ -721,6 +768,7 @@ const unsubs = scheduleTokenNotifications({
             const actionString = checkedState ? "CONFIRMED" : "DISENGAGED";
             writeTerminalLog(`ACTION`, `DAY ${String(dayNum).padStart(3, '0')} // TOKEN [${tokenType}] // STATE: ${actionString}`);
 
+            // Metrics are light enough; update without triggering full re-render.
             runMetricsEngine();
         }
 

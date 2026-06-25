@@ -1,0 +1,907 @@
+<!DOCTYPE html>
+<html lang="en" class="h-full bg-[#020408] text-slate-100 selection:bg-cyan-500 selection:text-slate-950">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Advanced Follicle Matrix Console v3</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script type="module">
+      import { FirebaseBridge } from './js/firebase-config.js';
+      window.FirebaseBridge = FirebaseBridge;
+    </script>
+
+    <script>
+      // Firebase config injected for non-module hair.html
+      window.__FIREBASE_CONFIG__ = {
+
+        apiKey: "AIzaSyBkTFg9ijG_hBdpCxvniY2axaFzgSD9Ncw",
+        authDomain: "health-tracker-70506.firebaseapp.com",
+        databaseURL: "https://health-tracker-70506-default-rtdb.firebaseio.com",
+        projectId: "health-tracker-70506",
+        storageBucket: "health-tracker-70506.firebasestorage.app",
+        messagingSenderId: "359208173293",
+        appId: "1:359208173293:web:673917d0047c8c913316e4",
+        measurementId: "G-TG2PKYPS52"
+      };
+    </script>
+
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Orbitron:wght@400;600;800;900&family=JetBrains+Mono:wght@400;700&display=swap');
+        .font-hud { font-family: 'Orbitron', sans-serif; }
+        .font-code { font-family: 'JetBrains Mono', sans-serif; }
+        
+        body {
+            height: auto;
+            overflow: auto;
+        }
+
+        .hud-glass {
+            background: linear-gradient(135deg, rgba(10, 7, 28, 0.8) 0%, rgba(4, 2, 14, 0.98) 100%);
+            backdrop-filter: blur(20px);
+            border: 1px solid rgba(255, 255, 255, 0.04);
+        }
+
+        :root {
+            --accent-glow: rgba(0, 242, 254, 0.4);
+            --accent-color: #00f2fe;
+        }
+        .theme-amethyst {
+            --accent-glow: rgba(168, 85, 247, 0.4);
+            --accent-color: #a855f7;
+        }
+        .theme-emerald {
+            --accent-glow: rgba(16, 185, 129, 0.4);
+            --accent-color: #10b981;
+        }
+
+        .glow-node-input:checked + div {
+            box-shadow: 0 0 14px var(--accent-glow);
+            border-color: var(--accent-color) !important;
+            background: rgba(0, 0, 0, 0.5) !important;
+        }
+
+        @keyframes radarPulse {
+            0% { transform: scale(0.95); opacity: 0.4; box-shadow: 0 0 0 0 var(--accent-glow); }
+            70% { transform: scale(1); opacity: 1; box-shadow: 0 0 0 8px rgba(0,242,254,0); }
+            100% { transform: scale(0.95); opacity: 0.4; box-shadow: 0 0 0 0 rgba(0,242,254,0); }
+        }
+        .radar-pulse-node { animation: radarPulse 2.5s infinite ease-in-out; }
+
+        .custom-scroll::-webkit-scrollbar { width: 6px; height: 6px; }
+        .custom-scroll::-webkit-scrollbar-track { background: rgba(0, 0, 0, 0.2); }
+        .custom-scroll::-webkit-scrollbar-thumb { background: #0f172a; border-radius: 99px; }
+        .custom-scroll::-webkit-scrollbar-thumb:hover { background: #1e293b; }
+
+        /* 3D-ish robot head (mascot) */
+        #uiMascot{ width:56px; height:56px; }
+        .robot-head{
+            width:56px; height:56px;
+            background: radial-gradient(circle at 35% 25%, rgba(0,242,254,0.25), rgba(0,0,0,0) 45%),
+                        linear-gradient(160deg, rgba(16,185,129,0.35), rgba(168,85,247,0.12));
+            border:1px solid rgba(255,255,255,0.08);
+            border-radius:14px;
+            box-shadow: 0 16px 36px rgba(0,242,254,0.08), inset 0 0 18px rgba(0,242,254,0.12);
+            transform: perspective(320px) rotateX(8deg);
+            position:relative;
+            overflow:hidden;
+        }
+        .robot-head:before{
+            content:'';
+            position:absolute; inset:-2px;
+            background: linear-gradient(90deg, rgba(0,242,254,0.12), rgba(168,85,247,0.08), rgba(0,242,254,0.12));
+            opacity:0.65;
+            filter: blur(2px);
+        }
+        .robot-face{
+            position:absolute; inset:0;
+            display:flex; flex-direction:column;
+            justify-content:center;
+            align-items:center;
+            gap:6px;
+            transform: translateZ(8px);
+        }
+        .robot-eye{
+            width:12px; height:8px;
+            background: radial-gradient(circle at 50% 50%, rgba(255,255,255,0.95), rgba(0,242,254,0.35));
+            border-radius:8px;
+            box-shadow: 0 0 16px rgba(0,242,254,0.25);
+        }
+        .robot-eye-l{ transform: translateX(-10px); }
+        .robot-eye-r{ transform: translateX(10px); }
+        .robot-mouth{
+            transition: opacity 180ms ease;
+            opacity: 0.95;
+            width:22px; height:10px;
+            border-radius:0 0 14px 14px;
+            border:1px solid rgba(0,242,254,0.25);
+            background: rgba(0,0,0,0.25);
+            box-shadow: inset 0 0 12px rgba(0,242,254,0.12);
+        }
+    </style>
+</head>
+<body class="flex flex-col text-xs text-slate-300 font-code bg-[#010204] min-h-screen">
+
+    <header id="topNavbar" class="h-16 flex-shrink-0 hud-glass border-b border-slate-900 px-3 sm:px-6 flex items-center justify-between z-50">
+
+        <div class="flex items-center gap-3 min-w-0 flex-1"> 
+
+            <div id="globalRadarIndicator" class="w-2.5 h-2.5 rounded-full bg-cyan-400 radar-pulse-node flex-shrink-0"></div>
+            <div class="min-w-0">
+                <h1 class="text-sm sm:text-sm font-black font-hud tracking-widest text-transparent bg-clip-text bg-gradient-to-r from-white via-slate-200 to-cyan-400 truncate">ADVANCED FOLLICLE MATRIX LOG</h1>
+                <p class="hidden sm:block text-[9px] text-slate-500 uppercase font-hud tracking-widest truncate">5-Month High-Resolution Trichology Execution Plan</p>
+            </div>
+        </div>
+
+        <div class="flex items-center gap-2 flex-shrink-0">
+            <div class="hidden sm:flex items-center gap-1.5 bg-slate-950/80 px-2 py-1 rounded-lg border border-slate-900 max-w-full">
+                <span class="text-[9px] font-hud text-slate-600 font-bold uppercase mr-1">Theme Matrix:</span>
+                <button onclick="shiftThemeAccent('cyan')" class="w-2.5 h-2.5 rounded-full bg-cyan-400 border border-white/20 hover:scale-125 transition-all"></button>
+                <button onclick="shiftThemeAccent('amethyst')" class="w-2.5 h-2.5 rounded-full bg-purple-500 border border-white/20 hover:scale-125 transition-all"></button>
+                <button onclick="shiftThemeAccent('emerald')" class="w-2.5 h-2.5 rounded-full bg-emerald-500 border border-white/20 hover:scale-125 transition-all"></button>
+            </div>
+
+            <div class="flex bg-slate-950 border border-slate-900 p-0.5 rounded-lg text-[10px] font-hud">
+                <button onclick="window.location.href='index.html'" class="px-2.5 py-1 text-slate-400 hover:text-white transition-all"><i class="bi bi-house-door"></i> Menu</button>
+                <button onclick="exportSystemLedger()" class="px-2.5 py-1 text-slate-400 hover:text-white transition-all"><i class="bi bi-download"></i> Export</button>
+                <label for="importFileEngine" class="px-2.5 py-1 text-slate-400 hover:text-white cursor-pointer transition-all"><i class="bi bi-upload"></i> Import</label>
+                <input type="file" id="importFileEngine" class="hidden" accept=".json" onchange="importSystemLedger(event)">
+            </div>
+        </div>
+    </header>
+
+<div class="flex flex-col lg:flex-row flex-1 w-full max-w-[1920px] mx-auto">
+        
+<aside class="w-full lg:w-[350px] xl:w-[410px] flex-shrink-0 lg:h-full min-h-0 border-r-0 lg:border-r border-slate-900/60 bg-[#04060c]/40 p-4 overflow-y-auto custom-scroll space-y-5">
+
+            
+            <section class="border border-red-950 bg-red-950/10 rounded-xl p-4 space-y-3">
+                <div class="flex items-center gap-2 text-red-400 border-b border-red-900/40 pb-2">
+                    <i class="bi bi-exclamation-octagon-fill text-sm"></i>
+                    <span class="font-hud text-[10px] uppercase font-black tracking-widest">▲ CRITICAL SAFETY DIRECTIVES</span>
+                </div>
+                <div class="space-y-2.5 text-[11px] text-slate-300 leading-relaxed">
+                    <div class="bg-slate-950/60 p-2.5 rounded-lg border border-red-900/30">
+                        <b class="text-red-400 block font-hud text-[9px] uppercase mb-1">1. The Anti-Fungal Clearance Rule:</b>
+                        Keep the Derma Roller entirely away from your scalp during <span class="text-white font-bold">Week 1 (Days 1-7)</span> to avoid spreading active surface yeast.
+                    </div>
+                    <div class="bg-slate-950/60 p-2.5 rounded-lg border border-red-900/30">
+                        <b class="text-red-400 block font-hud text-[9px] uppercase mb-1">2. The 24-Hour Active Delay:</b>
+                        Never apply your Rosemary & Caffeine spray on the night you use the Derma Roller. Leave your scalp bare to heal overnight, and resume your sprays 24 hours later.
+                    </div>
+                </div>
+            </section>
+
+            <section class="hud-glass rounded-xl p-4 space-y-2">
+                <div class="flex items-center justify-between border-b border-slate-900 pb-1.5">
+                    <span class="font-hud text-[10px] uppercase text-slate-400 font-bold tracking-wide">Notification Settings</span>
+                    <button id="btnReqNotifPerm" class="px-2 py-1 text-[10px] rounded-lg border border-slate-900/60 bg-slate-950/40 hover:bg-slate-950/70 hover:border-slate-800 text-slate-300">Enable</button>
+                </div>
+
+                <div class="space-y-2">
+                    <label class="flex items-center justify-between gap-3 text-[11px]">
+                        <span class="text-slate-300">Master notifications</span>
+                        <input id="chkNotifMaster" type="checkbox" class="accent-cyan-400" checked />
+                    </label>
+
+                    <div class="border border-slate-900/60 rounded-xl p-2 bg-slate-950/20">
+                        <div class="text-[10px] font-hud text-slate-400 uppercase tracking-widest mb-2">Per-task times</div>
+
+                        <div class="space-y-2">
+                            <div class="flex items-center justify-between gap-3">
+                                <label class="flex items-center gap-2 text-[11px]">
+                                    <input class="chkNotifToken accent-cyan-400" type="checkbox" data-token="W" checked /> <span class="text-slate-200">W-Wash</span>
+                                </label>
+                                <input id="inpNotifTime-W" type="time" value="09:00" class="w-[120px] bg-slate-950/40 border border-slate-900/60 rounded-lg px-2 py-1 outline-none focus:border-cyan-400 text-slate-100 text-[11px]" />
+                            </div>
+
+                            <div class="flex items-center justify-between gap-3">
+                                <label class="flex items-center gap-2 text-[11px]">
+                                    <input class="chkNotifToken accent-cyan-400" type="checkbox" data-token="S" checked /> <span class="text-slate-200">S-Spray</span>
+                                </label>
+                                <input id="inpNotifTime-S" type="time" value="09:00" class="w-[120px] bg-slate-950/40 border border-slate-900/60 rounded-lg px-2 py-1 outline-none focus:border-cyan-400 text-slate-100 text-[11px]" />
+                            </div>
+
+                            <div class="flex items-center justify-between gap-3">
+                                <label class="flex items-center gap-2 text-[11px]">
+                                    <input class="chkNotifToken accent-cyan-400" type="checkbox" data-token="M" checked /> <span class="text-slate-200">M-Tablet</span>
+                                </label>
+                                <input id="inpNotifTime-M" type="time" value="09:00" class="w-[120px] bg-slate-950/40 border border-slate-900/60 rounded-lg px-2 py-1 outline-none focus:border-cyan-400 text-slate-100 text-[11px]" />
+                            </div>
+
+                            <div class="flex items-center justify-between gap-3">
+                                <label class="flex items-center gap-2 text-[11px]">
+                                    <input class="chkNotifToken accent-cyan-400" type="checkbox" data-token="O" checked /> <span class="text-slate-200">O-Oil</span>
+                                </label>
+                                <input id="inpNotifTime-O" type="time" value="09:00" class="w-[120px] bg-slate-950/40 border border-slate-900/60 rounded-lg px-2 py-1 outline-none focus:border-cyan-400 text-slate-100 text-[11px]" />
+                            </div>
+
+                            <div class="flex items-center justify-between gap-3">
+                                <label class="flex items-center gap-2 text-[11px]">
+                                    <input class="chkNotifToken accent-cyan-400" type="checkbox" data-token="D" checked /> <span class="text-slate-200">D-Roller</span>
+                                </label>
+                                <input id="inpNotifTime-D" type="time" value="09:00" class="w-[120px] bg-slate-950/40 border border-slate-900/60 rounded-lg px-2 py-1 outline-none focus:border-cyan-400 text-slate-100 text-[11px]" />
+                            </div>
+                        </div>
+
+                        <div class="mt-2 text-[10px] text-slate-500">Each task can have its own notification time.</div>
+                    </div>
+
+                    <button id="btnSaveNotifSettings" class="w-full px-2 py-2 rounded-lg border border-cyan-400/20 bg-cyan-500/10 hover:bg-cyan-500/15 hover:border-cyan-400/30 text-cyan-200 text-[11px] font-hud font-bold">Save settings</button>
+                </div>
+            </section>
+
+
+            <section class="hud-glass rounded-xl p-4 space-y-3">
+                <div class="flex items-center justify-between">
+                    <span class="font-hud text-[10px] uppercase text-slate-400 font-bold tracking-wide">System Clearance Progress</span>
+                    <span id="lblPercentMetric" class="text-2xl font-black font-hud text-cyan-400 tracking-tighter">0.0%</span>
+                </div>
+
+                <div class="h-1 w-full bg-slate-950 border border-slate-900 rounded-full overflow-hidden">
+                    <div id="barPercentMetric" class="h-full bg-gradient-to-r from-cyan-400 to-purple-500 transition-all duration-300" style="width: 0%"></div>
+                </div>
+                <div class="grid grid-cols-2 gap-2 text-[10px] font-code text-slate-400 bg-slate-950/60 p-2 rounded-lg border border-slate-900">
+                    <div>Completed Nodes: <span id="statNodeCleared" class="text-cyan-400 font-bold">0</span></div>
+                    <div>Remaining Steps: <span id="statNodePending" class="text-purple-400 font-bold">0</span></div>
+                </div>
+                <div class="h-24 relative pt-1 flex justify-center items-center">
+                    <canvas id="chartMiniTelemetry"></canvas>
+                </div>
+            </section>
+
+            <section class="hud-glass rounded-xl p-4 space-y-2">
+                <span class="font-hud text-[10px] uppercase text-slate-400 font-bold tracking-wide block">Matrix Location Jump Terminal</span>
+                <div class="flex gap-2">
+                    <input type="number" id="txtJumpDay" min="1" max="152" placeholder="Enter Day Index (1-152)..." 
+                           class="flex-1 bg-slate-950 border border-slate-900 rounded-lg px-3 py-1.5 font-code text-[11px] text-slate-200 outline-none focus:border-cyan-500 transition-all">
+                    <button onclick="executeDayWarpJump()" class="px-3 bg-cyan-950/40 text-cyan-400 border border-cyan-800/50 hover:bg-cyan-900/50 font-hud text-[11px] font-bold uppercase rounded-lg transition-all">Warp</button>
+                </div>
+                <div class="grid grid-cols-5 gap-1 pt-1 font-hud text-[9px] text-center font-bold">
+                    <button onclick="warpToPhaseSection(1)" class="p-1 bg-slate-950 hover:bg-slate-900 border border-slate-900 rounded text-slate-400 hover:text-cyan-400">M1</button>
+                    <button onclick="warpToPhaseSection(2)" class="p-1 bg-slate-950 hover:bg-slate-900 border border-slate-900 rounded text-slate-400 hover:text-purple-400">M2</button>
+                    <button onclick="warpToPhaseSection(3)" class="p-1 bg-slate-950 hover:bg-slate-900 border border-slate-900 rounded text-slate-400 hover:text-fuchsia-400">M3</button>
+                    <button onclick="warpToPhaseSection(4)" class="p-1 bg-slate-950 hover:bg-slate-900 border border-slate-900 rounded text-slate-400 hover:text-amber-400">M4</button>
+                    <button onclick="warpToPhaseSection(5)" class="p-1 bg-slate-950 hover:bg-slate-900 border border-slate-900 rounded text-slate-400 hover:text-emerald-400">M5</button>
+                </div>
+            </section>
+
+            <section class="hud-glass rounded-xl p-4 space-y-3">
+                <span class="font-hud text-[10px] uppercase text-slate-400 font-bold tracking-wide block border-b border-slate-900 pb-1.5">TRICHOLOGY REMEDY PROTOCOLS</span>
+                <div class="space-y-3 text-[11px]">
+                    <div class="flex items-start gap-2.5">
+                        <span class="px-1.5 py-0.5 rounded bg-cyan-950 text-cyan-400 font-bold font-hud">W</span>
+                        <div>
+                            <b class="text-slate-200 block font-hud text-[10px]">Wash Protocol</b>
+                            <span class="text-slate-400 text-[10px]">BBlunt Anti-Dandruff System (3-minute strict contact rule)</span>
+                        </div>
+                    </div>
+                    <div class="flex items-start gap-2.5">
+                        <span class="px-1.5 py-0.5 rounded bg-purple-950 text-purple-400 font-bold font-hud">S</span>
+                        <div>
+                            <b class="text-slate-200 block font-hud text-[10px]">Topical Absorber</b>
+                            <span class="text-slate-400 text-[10px]">Rosemary & Caffeine Active Solution Spray</span>
+                        </div>
+                    </div>
+                    <div class="flex items-start gap-2.5">
+                        <span class="px-1.5 py-0.5 rounded bg-slate-900 text-slate-400 font-bold font-hud">M</span>
+                        <div>
+                            <b class="text-slate-200 block font-hud text-[10px]">Micronutrient</b>
+                            <span class="text-slate-400 text-[10px]">Daily Specialized Multi-Tablet Fuel Block</span>
+                        </div>
+                    </div>
+                    <div class="flex items-start gap-2.5">
+                        <span class="px-1.5 py-0.5 rounded bg-amber-950 text-amber-500 font-bold font-hud">O</span>
+                        <div>
+                            <b class="text-slate-200 block font-hud text-[10px]">Oil Guard</b>
+                            <span class="text-slate-400 text-[10px]">Coconut Protection (Applied strictly to hair strands and ends)</span>
+                        </div>
+                    </div>
+                    <div class="flex items-start gap-2.5">
+                        <span class="px-1.5 py-0.5 rounded bg-red-950 text-red-400 font-bold font-hud">D</span>
+                        <div>
+                            <b class="text-slate-200 block font-hud text-[10px]">Roller Induction</b>
+                            <span class="text-slate-400 text-[10px]">0.5mm Scalp Derma Roller Session Matrix</span>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <section class="hud-glass rounded-xl p-4 space-y-2">
+                <div class="flex items-center justify-between border-b border-slate-900 pb-1.5">
+                    <span class="font-hud text-[10px] uppercase text-slate-400 font-bold tracking-wide">Console Activity Log Feed</span>
+                    <span class="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"></span>
+                
+                </div>
+                <div id="liveTerminalFeedContainer" class="h-28 overflow-y-auto bg-slate-950 border border-slate-900/80 rounded-lg p-2 font-code text-[10px] text-slate-400 space-y-1 custom-scroll">
+                    <div class="text-slate-600">// Engine initialized. Standby for metric confirmation telemetry logs...</div>
+                </div>
+            </section>
+        </aside>
+
+<main id="matrixGridScrollTrack" class="flex-1 w-full min-h-0 overflow-y-auto custom-scroll p-6 space-y-8 bg-[#020306]">
+
+            
+            <div class="hud-glass p-3 rounded-xl border border-slate-900/80 flex flex-col sm:flex-row items-center justify-between gap-3 sticky top-0 z-30">
+                <div class="flex items-center gap-2">
+                    <span class="w-1.5 h-1.5 bg-cyan-400 rounded-sm"></span>
+                    <span class="font-hud text-[10px] uppercase font-black text-slate-400 tracking-wider">Dynamic Token Matrix Filters:</span>
+                </div>
+                <div class="flex flex-wrap bg-slate-950 p-0.5 border border-slate-900 rounded-lg font-hud text-[9px] font-bold gap-0.5">
+                    <button onclick="applyTimelineFilter('all')" id="btnFilter-all" class="px-2.5 py-1.5 rounded-md bg-slate-900 text-cyan-400 border border-slate-800 transition-all uppercase">All Operations</button>
+                    <button onclick="applyTimelineFilter('W')" id="btnFilter-W" class="px-2.5 py-1.5 rounded-md text-slate-400 hover:text-white transition-all uppercase">W-Wash</button>
+                    <button onclick="applyTimelineFilter('S')" id="btnFilter-S" class="px-2.5 py-1.5 rounded-md text-slate-400 hover:text-white transition-all uppercase">S-Spray</button>
+                    <button onclick="applyTimelineFilter('M')" id="btnFilter-M" class="px-2.5 py-1.5 rounded-md text-slate-400 hover:text-white transition-all uppercase">M-Tablet</button>
+                    <button onclick="applyTimelineFilter('O')" id="btnFilter-O" class="px-2.5 py-1.5 rounded-md text-slate-400 hover:text-white transition-all uppercase">O-Oil</button>
+                    <button onclick="applyTimelineFilter('D')" id="btnFilter-D" class="px-2.5 py-1.5 rounded-md text-slate-400 hover:text-white transition-all uppercase">D-Roller</button>
+                </div>
+            </div>
+
+            <div id="masterProgrammaticGridRoot" class="space-y-8"></div>
+        </main>
+    </div>
+
+    <script type="module">
+      import { ensureServiceWorker, requestNotificationPermission, scheduleTokenNotifications, getPageSettings, setPageSettings } from './js/push-notify.js';
+      const pageKey = 'hair';
+
+document.addEventListener('DOMContentLoaded', async () => {
+        try {
+          // bind toast events from push-notify
+          const mod = await import('./js/notif-debug-ui.js');
+          mod.bindNotifToasts?.();
+        } catch {}
+
+        const swOk = await ensureServiceWorker();
+        if (!swOk) {
+          writeTerminalLog('ERROR', 'NOTIF: service worker registration failed');
+        } else {
+          writeTerminalLog('SYSTEM', 'NOTIF: service worker registered');
+        }
+        try { await requestNotificationPermission(); } catch (e) {}
+
+        const cfg = getPageSettings(pageKey);
+
+
+
+                const chkMaster = document.getElementById('chkNotifMaster');
+
+                if (chkMaster) chkMaster.checked = cfg?.enabled !== false;
+
+                document.querySelectorAll('.chkNotifToken').forEach(el => {
+                  const tk = el.getAttribute('data-token');
+                  const tokenCfg = cfg?.tokens?.[tk];
+                  if (tokenCfg) {
+                    el.checked = !!tokenCfg.enabled;
+
+                    const timeEl = document.getElementById(`inpNotifTime-${tk}`);
+                    if (timeEl && tokenCfg.time) timeEl.value = tokenCfg.time;
+                  } else {
+                    el.checked = true;
+                    const timeEl = document.getElementById(`inpNotifTime-${tk}`);
+                    if (timeEl) timeEl.value = cfg?.scheduleTime || '09:00';
+                  }
+                });
+
+
+        const btnPerm = document.getElementById('btnReqNotifPerm');
+        if (btnPerm) {
+          btnPerm.addEventListener('click', async () => {
+            await requestNotificationPermission();
+          });
+        }
+
+            const btnSave = document.getElementById('btnSaveNotifSettings');
+            if (btnSave) {
+              btnSave.addEventListener('click', async () => {
+                const enabled = chkMaster ? !!chkMaster.checked : true;
+
+                const tokens = {};
+                document.querySelectorAll('.chkNotifToken').forEach(el => {
+                  const tk = el.getAttribute('data-token');
+                  const timeEl = document.getElementById(`inpNotifTime-${tk}`);
+                  const time = timeEl?.value || (getPageSettings(pageKey)?.scheduleTime || '09:00');
+                  tokens[tk] = { enabled: !!el.checked, time };
+                });
+
+                setPageSettings(pageKey, {
+                  enabled,
+                  tokens
+                });
+
+const unsubs = scheduleTokenNotifications({
+                  pageKey,
+                  title: 'Hair reminder',
+                  getBodyText: ({ token }) => `Enabled task: ${token}`
+                });
+
+                writeTerminalLog('SYSTEM', `NOTIF: hair settings saved + scheduler started (${Array.isArray(unsubs) ? unsubs.length : '1'})`);
+              });
+            }
+
+
+
+        // Single time-per-page notification removed when using token-level notifications.
+        // scheduleDailyNotification({ ... })
+
+      });
+    </script>
+
+
+    <script>
+        const globalMatrixDataset = {
+
+            1: { phase: "MONTH 1: CYAN SHIELD PROTOCOL (DAYS 1-30)", target: "Strip away the grease mantle, neutralize the fungal itch, and prepare clean follicle beds.", logQuote: "The surface oil balance is normalizing. The 3-minute medicated contact time is driving out the fungus!", length: 30, tag: "p1", color: "from-cyan-500/10 to-transparent", 
+                 days: {
+                    1: ["S","W","M"], 2: ["S","M"], 3: ["S","W","M"], 4: ["S","M"], 5: ["S","W","M"], 6: ["S","M"],
+                    7: ["S","W","M","O"], 8: ["M","D"], 9: ["M"], 10: ["S","W","M"], 11: ["S","M"], 12: ["S","W","M"],
+                    13: ["S","W","M"], 14: ["S","M"], 15: ["S","W","M"], 16: ["S","M"], 17: ["S","W","M"], 18: ["S","M"],
+                    19: ["S","W","M"], 20: ["M","D"], 21: ["M"], 22: ["S","W","M"], 23: ["S","M"], 24: ["S","W","M","O"],
+                    25: ["S","W","M"], 26: ["S","M"], 27: ["S","W","M"], 28: ["S","M"], 29: ["S","W","M"], 30: ["S","M"]
+                 }
+            },
+            2: { phase: "MONTH 2: NEON PURPLE ANCHORING (DAYS 31-60)", target: "Anchor the hair bulb matrix firmly into the deep skin bed. Noticeable drop in daily shower-floor fallout.", logQuote: "Shedding velocity is lowering. The 24-hour mandatory roller-to-spray rest windows are shielding delicate tissue.", length: 30, tag: "p2", color: "from-purple-500/10 to-transparent",
+                 days: {
+                    31: ["S","W","M"], 32: ["M","O","D"], 33: ["O","M"], 34: ["S","W","M"], 35: ["S","M"], 36: ["S","W","M"],
+                    37: ["S","W","M"], 38: ["S","M","O"], 39: ["S","W","M"], 40: ["S","M"], 41: ["S","W","M"], 42: ["S","M"],
+                    43: ["S","W","M"], 44: ["M","D"], 45: ["M"], 46: ["S","W","M"], 47: ["S","M"], 48: ["S","W","M"],
+                    49: ["S","W","M"], 50: ["S","M"], 51: ["S","W"], 52: ["S","M"], 53: ["S","W","M"], 54: ["S","M"],
+                    55: ["S","W","M"], 56: ["M","D"], 57: ["M"], 58: ["S","W","M"], 59: ["S","M"], 60: ["S","W","M"]
+                 }
+            },
+            3: { phase: "MONTH 3: MAGENTA CORE SPROUTING (DAYS 61-91)", target: "Drive micro-sprouting cell blocks inside sleeping follicles. Look for thin new sprouts at the hairline parting.", logQuote: "The micro-sprouts are breaching the epidermal layer. Rosemary and caffeine elements are maximizing target absorption!", length: 31, tag: "p3", color: "from-fuchsia-500/10 to-transparent",
+                 days: {
+                    61: ["S","M"], 62: ["S","W","M"], 63: ["S","M"], 64: ["S","W","M","O"], 65: ["S","M"], 66: ["S","W","M"],
+                    67: ["S","W","M"], 68: ["M","D"], 69: ["M"], 70: ["S","W","M"], 71: ["S","M"], 72: ["S","W","M"],
+                    73: ["S","M"], 74: ["S","W","M"], 75: ["S","M"], 76: ["S","W","M"], 77: ["S","M"], 78: ["S","W","M"],
+                    79: ["S","W","M"], 80: ["M","O","D"], 81: ["M"], 82: ["S","W","M"], 83: ["S","M"], 84: ["S","W","M"],
+                    85: ["S","M"], 86: ["S","W","M","O"], 87: ["M","D"], 88: ["M"], 89: ["S","W","M"], 90: ["S","M"], 91: ["S","W","M"]
+                 }
+            },
+            4: { phase: "MONTH 4: AMBER DENSITY FILL (DAYS 92-121)", target: "Massively stimulate baby hair shaft thickness. Cover up exposed scalp fields with high-tensile protein links.", logQuote: "Visual density is widening across structural gaps. Individual fibers are hardening nicely!", length: 30, tag: "p4", color: "from-amber-500/10 to-transparent",
+                 days: {
+                    92: ["S","M"], 93: ["S","W","M"], 94: ["M","O","D"], 95: ["M"], 96: ["S","W","M"], 97: ["O","S","M"],
+                    98: ["S","M"], 99: ["S","W","M","O"], 100: ["M","O","D"], 101: ["M"], 102: ["S","W","M"], 103: ["S","M"],
+                    104: ["S","M"], 105: ["S","W","M"], 106: ["M","O","D"], 107: ["M"], 108: ["S","M"], 109: ["S","W","M"],
+                    110: ["S","M"], 111: ["S","W","M"], 112: ["M","O","D"], 113: ["M"], 114: ["S","W","M","O"], 115: ["S","M"],
+                    116: ["S","M"], 117: ["S","W","M"], 118: ["M","D"], 119: ["M"], 120: ["S","W","M"], 121: ["S"]
+                 }
+            },
+            5: { phase: "MONTH 5: MATRIX GREEN RETENTION (DAYS 122-152)", target: "Permanent structural locking of the skin barrier line. Complete volume recovery and stable density preservation.", logQuote: "The full 152-day transformation matrix is complete. Consistency has successfully restored your scalp health!", length: 31, tag: "p5", color: "from-emerald-500/10 to-transparent",
+                 days: {
+                    122: ["S","M"], 123: ["S","W","M"], 124: ["M","D"], 125: ["M"], 126: ["S","W","M"], 127: ["S","M"],
+                    128: ["M"], 129: ["S","W","M","O"], 130: ["M","D"], 131: ["M"], 132: ["S","W","M"], 133: ["S","M"],
+                    134: ["S","M"], 135: ["S","W","M"], 136: ["M","O","D"], 137: ["M"], 138: ["S","W","M"], 139: ["S","M"],
+                    140: ["M"], 141: ["S","W","M"], 142: ["M","O","D"], 143: ["M"], 144: ["M"], 145: ["S","M"],
+                    146: ["S","M"], 147: ["S","W","M"], 148: ["M","O","D"], 149: ["M"], 150: ["S","W","O","M"], 151: ["S","M"], 152: ["S","M"]
+                 }
+            }
+        };
+
+        const descriptiveTokenMap = { "M": "Tablet", "S": "Spray", "W": "Wash", "O": "Oil Ends", "D": "Roller" };
+        let activeSelectionFilter = 'all';
+        let chartTelemetryObject = null;
+
+        document.addEventListener("DOMContentLoaded", () => {
+            // Start with local render, then sync ledger from Firebase.
+            compileAppInterfaceMatrix();
+            runMetricsEngine();
+            syncLedgerFromFirebase();
+        });
+
+        function shiftThemeAccent(themeToken) {
+            const documentElement = document.documentElement;
+            documentElement.className = "h-full bg-[#020408] text-slate-100 selection:bg-cyan-500 selection:text-slate-950";
+            const radar = document.getElementById("globalRadarIndicator");
+            
+            if (themeToken === 'cyan') {
+                document.documentElement.style.setProperty('--accent-color', '#00f2fe');
+                document.documentElement.style.setProperty('--accent-glow', 'rgba(0, 242, 254, 0.4)');
+                radar.className = "w-2.5 h-2.5 rounded-full bg-cyan-400 radar-pulse-node";
+            } else if (themeToken === 'amethyst') {
+                documentElement.classList.add('theme-amethyst');
+                document.documentElement.style.setProperty('--accent-color', '#a855f7');
+                document.documentElement.style.setProperty('--accent-glow', 'rgba(168, 85, 247, 0.4)');
+                radar.className = "w-2.5 h-2.5 rounded-full bg-purple-500 radar-pulse-node";
+            } else if (themeToken === 'emerald') {
+                documentElement.classList.add('theme-emerald');
+                document.documentElement.style.setProperty('--accent-color', '#10b981');
+                document.documentElement.style.setProperty('--accent-glow', 'rgba(16, 185, 129, 0.4)');
+                radar.className = "w-2.5 h-2.5 rounded-full bg-emerald-500 radar-pulse-node";
+            }
+            writeTerminalLog(`SYSTEM`, `THEME VECTOR SET TO MODULE: [${themeToken.toUpperCase()}]`);
+            
+            // Re-render card highlights to conform with the new theme colors
+            for (let i = 1; i <= 152; i++) { colorizeCardFrame(i); }
+        }
+
+        function applyTimelineFilter(tokenField) {
+            activeSelectionFilter = tokenField;
+            ['all', 'W', 'S', 'M', 'O', 'D'].forEach(x => {
+                const btn = document.getElementById(`btnFilter-${x}`);
+                if (btn) btn.className = "px-2.5 py-1.5 rounded-md text-slate-400 hover:text-white transition-all uppercase";
+            });
+            const activeBtn = document.getElementById(`btnFilter-${tokenField}`);
+            if (activeBtn) activeBtn.className = "px-2.5 py-1.5 rounded-md bg-slate-900 text-[var(--accent-color,#00f2fe)] border border-slate-800 transition-all uppercase";
+            compileAppInterfaceMatrix();
+        }
+
+        function compileAppInterfaceMatrix() {
+            const root = document.getElementById("masterProgrammaticGridRoot");
+            let cache = loadStateLedger();
+            let compiledHtml = '';
+
+            Object.keys(globalMatrixDataset).forEach(phaseKey => {
+                const meta = globalMatrixDataset[phaseKey];
+                let internalCardsHtml = '';
+
+                Object.keys(meta.days).forEach(dayNum => {
+                    const tokens = meta.days[dayNum];
+
+                    if (activeSelectionFilter !== 'all' && !tokens.includes(activeSelectionFilter)) return;
+
+                    let elementsHtml = '';
+                    tokens.forEach(tk => {
+                        const uniqueNodeId = `node-ph${phaseKey}-d${dayNum}-${tk}`;
+                        const checkedAttr = cache[uniqueNodeId] ? 'checked' : '';
+
+                        elementsHtml += `
+                            <label class="relative flex items-center gap-1.5 cursor-pointer group select-none">
+                                <input type="checkbox" id="${uniqueNodeId}" ${checkedAttr} 
+                                       onchange="toggleMatrixNode('${uniqueNodeId}', ${dayNum}, '${tk}')"
+                                       class="glow-node-input absolute opacity-0 w-0 h-0 peer">
+                                <div class="w-full flex items-center justify-between p-1.5 rounded bg-slate-950/80 border border-slate-900/60 group-hover:border-slate-800 transition-all peer-checked:border-slate-700">
+                                    <span class="text-[10px] text-slate-400 peer-checked:text-white"><b class="text-cyan-400">[${tk}]</b> ${descriptiveTokenMap[tk]}</span>
+                                    <i class="bi bi-shield-check text-transparent peer-checked:text-emerald-400 text-[10px]"></i>
+                                </div>
+                            </label>
+                        `;
+                    });
+
+                    let noticeIndicator = '';
+                    if (tokens.includes('D') && dayNum <= 7) {
+                        noticeIndicator = `<div class="mt-1.5 text-[8px] font-hud font-bold text-red-400 bg-red-950/20 border border-red-900/30 py-0.5 rounded text-center tracking-tighter uppercase"><i class="bi bi-exclamation-octagon"></i> Anti-Fungal Rule</div>`;
+                    } else if (tokens.includes('D')) {
+                        noticeIndicator = `<div class="mt-1.5 text-[8px] font-hud font-bold text-amber-500 bg-amber-950/10 border border-amber-900/30 py-0.5 rounded text-center tracking-tighter uppercase"><i class="bi bi-clock-history"></i> 24H Spray Rest</div>`;
+                    }
+
+                    internalCardsHtml += `
+                        <div id="daycard-index-${dayNum}" class="hud-glass rounded-xl p-3 border border-slate-900 flex flex-col justify-between hover:border-slate-800 transition-all">
+                            <div>
+                                <div class="flex items-center justify-between border-b border-slate-900 pb-1 mb-2">
+                                    <span class="font-hud font-black text-white text-[11px]">DAY ${String(dayNum).padStart(3, '0')}</span>
+                                    <span class="text-[9px] font-code text-slate-600 font-bold">M0${phaseKey}</span>
+                                </div>
+                                <div class="grid grid-cols-1 gap-1">${elementsHtml}</div>
+                            </div>
+                            ${noticeIndicator}
+                        </div>
+                    `;
+                });
+
+                if (!internalCardsHtml) return;
+
+                compiledHtml += `
+                    <section id="anchor-phase-section-${phaseKey}" class="hud-glass p-5 rounded-xl border border-slate-900 space-y-4 bg-gradient-to-b ${meta.color}">
+                        <div class="flex flex-col md:flex-row md:items-center justify-between gap-2 border-b border-slate-900/80 pb-3">
+                            <div>
+                                <h3 class="text-xs font-bold font-hud text-slate-100 uppercase tracking-widest flex items-center gap-2">
+                                    <span class="w-1.5 h-1.5 rounded-sm bg-gradient-to-r from-cyan-400 to-purple-500"></span>${meta.phase}
+                                </h3>
+                                <p class="text-[10px] text-cyan-400 font-code mt-1"><b class="text-slate-400 uppercase font-hud text-[9px]">Target Area:</b> ${meta.target}</p>
+                            </div>
+                        </div>
+                        
+                        <div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-3">${internalCardsHtml}</div>
+                        
+                        <div class="mt-2 bg-slate-950/60 rounded-xl p-3 border border-slate-900/80 text-slate-400 italic text-[10px] flex items-center gap-2">
+                            <i class="bi bi-chat-left-quote-fill text-purple-400 text-xs"></i>
+                            <span>"${meta.logQuote}"</span>
+                        </div>
+                    </section>
+                `;
+            });
+
+            root.innerHTML = compiledHtml || `<div class="hud-glass p-8 rounded-xl border border-slate-900 text-center text-slate-500 font-hud tracking-widest uppercase">No matching operational fields detected in viewport.</div>`;
+            
+            for (let i = 1; i <= 152; i++) { colorizeCardFrame(i); }
+        }
+
+        let __matrixRerenderScheduled = false;
+        function scheduleMatrixRerender() {
+            if (__matrixRerenderScheduled) return;
+            __matrixRerenderScheduled = true;
+            setTimeout(() => {
+                __matrixRerenderScheduled = false;
+                try {
+                    compileAppInterfaceMatrix();
+                    runMetricsEngine();
+                } catch {}
+            }, 120);
+        }
+
+        function loadStateLedger() {
+            let data = localStorage.getItem("nexus_v3_matrix_ledger");
+            return data ? JSON.parse(data) : {};
+        }
+
+        async function syncLedgerFromFirebase() {
+            try {
+                // firebase-config.js exports FirebaseBridge as an ES module.
+                // On non-module pages, it may not attach to window.
+                // Since hair.html is not a module, we require an explicit global for FirebaseBridge.
+                const fb = window.FirebaseBridge;
+                if (!fb || !fb.connectCloudNode) {
+                    writeTerminalLog('ERROR', 'CLOUD: FirebaseBridge missing (not on window)');
+                    return;
+                }
+
+                const res = window.FirebaseBridge.connectCloudNode(window.__FIREBASE_CONFIG__ || {});
+                if (!res || !res.bundle) {
+                    writeTerminalLog('ERROR', 'CLOUD: connectCloudNode returned no bundle');
+                    return;
+                }
+
+                writeTerminalLog('SYSTEM', 'CLOUD: connected, reading ledger...');
+
+                // One-time load
+                const cloudState = await res.bundle.readStateFromCloud();
+                const cloudSize = (cloudState && typeof cloudState === 'object') ? Object.keys(cloudState).length : 0;
+                writeTerminalLog('SYSTEM', `CLOUD: read complete. entries=${cloudSize}`);
+
+                if (cloudState && typeof cloudState === 'object') {
+                    // Normalize Firebase snapshot shape to flat map: { [nodeId]: boolean }
+                    const topKeys = Object.keys(cloudState);
+                    writeTerminalLog('SYSTEM', `CLOUD: snapshot keys(sample)=${topKeys.slice(0,10).join(',')} total=${topKeys.length}`);
+
+                    let normalized = cloudState;
+                    if (cloudState.user_state && typeof cloudState.user_state === 'object') normalized = cloudState.user_state;
+                    else if (cloudState.nexus_v3_matrix_ledger && typeof cloudState.nexus_v3_matrix_ledger === 'object') normalized = cloudState.nexus_v3_matrix_ledger;
+                    else if (cloudState.follicle_matrix_ledger && typeof cloudState.follicle_matrix_ledger === 'object') {
+                        normalized = cloudState.follicle_matrix_ledger.user_state && typeof cloudState.follicle_matrix_ledger.user_state === 'object'
+                            ? cloudState.follicle_matrix_ledger.user_state
+                            : cloudState.follicle_matrix_ledger;
+                    }
+
+                    if (!normalized || typeof normalized !== 'object') normalized = {};
+                    localStorage.setItem('nexus_v3_matrix_ledger', JSON.stringify(normalized));
+                    compileAppInterfaceMatrix();
+                    runMetricsEngine();
+                }
+
+                // Live sync
+                res.bundle.subscribeStateFromCloud((updated) => {
+                    // Firebase may emit partial/delta or briefly empty payloads during reconnect.
+                    // Never replace the whole local ledger with an incomplete snapshot.
+                    if (!updated || typeof updated !== 'object') return;
+
+                    const sz = Object.keys(updated).length;
+                    if (sz === 0) {
+                        writeTerminalLog('SYSTEM', 'CLOUD: live update skipped (empty payload)');
+                        return;
+                    }
+
+                    try {
+                        // Normalize live update too
+                        let normalized = updated;
+                        if (updated.user_state && typeof updated.user_state === 'object') normalized = updated.user_state;
+                        else if (updated.nexus_v3_matrix_ledger && typeof updated.nexus_v3_matrix_ledger === 'object') normalized = updated.nexus_v3_matrix_ledger;
+                        else if (updated.follicle_matrix_ledger && typeof updated.follicle_matrix_ledger === 'object') {
+                            normalized = updated.follicle_matrix_ledger.user_state && typeof updated.follicle_matrix_ledger.user_state === 'object'
+                                ? updated.follicle_matrix_ledger.user_state
+                                : updated.follicle_matrix_ledger;
+                        }
+
+                        const prev = loadStateLedger();
+                        const merged = { ...prev, ...(normalized && typeof normalized === 'object' ? normalized : {}) };
+                        writeTerminalLog('SYSTEM', `CLOUD: live update merged. prev=${Object.keys(prev).length} upd=${sz} now=${Object.keys(merged).length}`);
+                        localStorage.setItem('nexus_v3_matrix_ledger', JSON.stringify(merged));
+
+                        // Debounce expensive rerender
+                        scheduleMatrixRerender();
+                    } catch (e) {
+                        writeTerminalLog('ERROR', `CLOUD: merge failed (${String(e && e.message ? e.message : e)})`);
+                    }
+                });
+
+                // Also stash bundle methods so toggleMatrixNode can push+read reliably.
+                window.FirebaseBridge.__bundle = res.bundle;
+            } catch (e) {
+                writeTerminalLog('ERROR', `CLOUD: ${String(e && e.message ? e.message : e)}`);
+            }
+        }
+
+        function colorizeCardFrame(dayNum) {
+            const frame = document.getElementById(`daycard-index-${dayNum}`);
+            if (!frame) return;
+            const checkboxes = frame.querySelectorAll('input[type="checkbox"]');
+            const totalChecked = frame.querySelectorAll('input[type="checkbox"]:checked');
+
+            if (checkboxes.length === totalChecked.length && checkboxes.length > 0) {
+                frame.style.borderColor = "var(--accent-color, #00f2fe)";
+                frame.style.background = "rgba(0, 0, 0, 0.4)";
+            } else {
+                frame.style.borderColor = "";
+                frame.style.background = "";
+            }
+        }
+
+        function toggleMatrixNode(nodeId, dayNum, tokenType) {
+            colorizeCardFrame(dayNum);
+            let state = loadStateLedger();
+            const checkedState = document.getElementById(nodeId).checked;
+            state[nodeId] = checkedState;
+            localStorage.setItem("nexus_v3_matrix_ledger", JSON.stringify(state));
+
+            // Push update to Firebase so other devices update.
+            // Best-effort: if Firebase is not connected, we still keep localStorage working.
+            (async () => {
+                try {
+                    const bundle = window.FirebaseBridge?.__bundle;
+                    if (bundle && typeof bundle.pushStateToCloud === 'function') {
+                        // 1) Push update (best-effort)
+                        await bundle.pushStateToCloud(state);
+                        // Do not force full re-render here; rely on localStorage + live sync.
+                    }
+                } catch (e) {
+                    // ignore
+                }
+            })();
+
+            const actionString = checkedState ? "CONFIRMED" : "DISENGAGED";
+            writeTerminalLog(`ACTION`, `DAY ${String(dayNum).padStart(3, '0')} // TOKEN [${tokenType}] // STATE: ${actionString}`);
+
+            runMetricsEngine();
+        }
+
+        function writeTerminalLog(type, msg) {
+            const container = document.getElementById("liveTerminalFeedContainer");
+            if (!container) return;
+            const timeStr = new Date().toLocaleTimeString();
+            const logLine = document.createElement("div");
+            logLine.className = type === 'ACTION' ? "text-cyan-400" : (type === 'ERROR' ? "text-red-400" : "text-purple-400");
+            logLine.innerHTML = `<span class="text-slate-600">[${timeStr}]</span> <b class="font-hud text-[9px]">[${type}]</b> ${msg}`;
+            container.appendChild(logLine);
+            container.scrollTop = container.scrollHeight;
+        }
+
+        function executeDayWarpJump() {
+            const input = document.getElementById("txtJumpDay");
+            const val = parseInt(input.value);
+            if (!val || val < 1 || val > 152) {
+                writeTerminalLog(`ERROR`, `INVALID CHRONO EXPEDITION POSITION: ${input.value}`);
+                return;
+            }
+            const targetElement = document.getElementById(`daycard-index-${val}`);
+            if (targetElement) {
+                targetElement.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                const oldColor = targetElement.style.borderColor;
+                targetElement.style.borderColor = "var(--accent-color, #00f2fe)";
+                targetElement.style.boxShadow = "0 0 20px var(--accent-glow)";
+                setTimeout(() => {
+                    targetElement.style.borderColor = oldColor;
+                    targetElement.style.boxShadow = "";
+                    colorizeCardFrame(val);
+                }, 2000);
+                writeTerminalLog(`WARP`, `TRANSITING APPARATUS DISPATCH VIEW TO DAY CARDS INDEX: ${val}`);
+            } else {
+                writeTerminalLog(`ERROR`, `DAY ELEMENT UNAVAILABLE IN TIMELINE. TRY CLEARING APPLIED FILTERS.`);
+            }
+        }
+
+        function warpToPhaseSection(phaseIdx) {
+            const element = document.getElementById(`anchor-phase-section-${phaseIdx}`);
+            if (element) {
+                element.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                writeTerminalLog(`WARP`, `SHIFTING VIEWPORT PERSPECTIVE DIRECTLY TO MONTH INDEX: [0${phaseIdx}]`);
+            }
+        }
+
+        function runMetricsEngine() {
+            const allCheckboxes = document.querySelectorAll('.glow-node-input');
+            const total = allCheckboxes.length;
+            const checked = document.querySelectorAll('.glow-node-input:checked').length;
+            const pending = total - checked;
+            
+            const percent = total > 0 ? ((checked / total) * 100).toFixed(1) : "0.0";
+            
+            document.getElementById("lblPercentMetric").innerText = `${percent}%`;
+            document.getElementById("barPercentMetric").style.width = `${percent}%`;
+            document.getElementById("statNodeCleared").innerText = checked;
+            document.getElementById("statNodePending").innerText = pending;
+            
+            updateTelemetryChart(checked, pending);
+        }
+
+        function updateTelemetryChart(completed, pending) {
+            const ctx = document.getElementById('chartMiniTelemetry').getContext('2d');
+            const accentColor = getComputedStyle(document.documentElement).getPropertyValue('--accent-color').trim() || '#00f2fe';
+            
+            if (chartTelemetryObject) {
+                chartTelemetryObject.data.datasets[0].data = [completed, pending];
+                chartTelemetryObject.data.datasets[0].backgroundColor = [accentColor, '#0f172a'];
+                chartTelemetryObject.update();
+            } else {
+                chartTelemetryObject = new Chart(ctx, {
+                    type: 'doughnut',
+                    data: {
+                        labels: ['Completed Operations', 'Pending Operations'],
+                        datasets: [{
+                            data: [completed, pending],
+                            backgroundColor: [accentColor, '#0f172a'],
+                            borderColor: '#020408',
+                            borderWidth: 2,
+                            hoverOffset: 4
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        plugins: {
+                            legend: { display: false },
+                            tooltip: {
+                                backgroundColor: '#090d16',
+                                titleFont: { family: 'Orbitron', size: 10 },
+                                bodyFont: { family: 'JetBrains Mono', size: 10 },
+                                borderColor: '#1e293b',
+                                borderWidth: 1
+                            }
+                        },
+                        cutout: '70%'
+                    }
+                });
+            }
+        }
+
+        function exportSystemLedger() {
+            const ledger = localStorage.getItem("nexus_v3_matrix_ledger") || "{}";
+            const blob = new Blob([ledger], { type: "application/json" });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement("a");
+            a.href = url;
+            a.download = `follicle_matrix_ledger_${new Date().toISOString().split('T')[0]}.json`;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            writeTerminalLog("SYSTEM", "LEDGER FILE EXPORT COMPLETED SUCCESSFULLY");
+        }
+
+        function importSystemLedger(event) {
+            const file = event.target.files[0];
+            if (!file) return;
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                try {
+                    const parsed = JSON.parse(e.target.result);
+                    localStorage.setItem("nexus_v3_matrix_ledger", JSON.stringify(parsed));
+                    compileAppInterfaceMatrix();
+                    runMetricsEngine();
+                    writeTerminalLog("SYSTEM", "EXTERNAL DATA LEDGER IMPORTED AND VERIFIED SUCCESSFULLY");
+                } catch(err) {
+                    writeTerminalLog("ERROR", "INVALID MATRIX CONFIGURATION FILE DETECTED");
+                }
+            };
+            reader.readAsText(file);
+        }
+
+        // ===== Mobile navbar UX (mascot removed) =====
+        (function () {
+            const nav = document.getElementById('topNavbar');
+            if (!nav) return;
+
+            const applyCompact = (compact) => {
+                nav.classList.toggle('py-2', !compact);
+                nav.classList.toggle('py-1', compact);
+            };
+
+            window.addEventListener('scroll', () => {
+                applyCompact(window.scrollY > 8);
+            }, { passive: true });
+
+            applyCompact(false);
+        })();
+    </script>
+
+</body>
+</html>

@@ -1,11 +1,9 @@
-import { CapacitorConfig } from '@capacitor/cli';
+import type { CapacitorConfig } from '@capacitor/cli';
 
 const config: CapacitorConfig = {
-  appId: 'com.nexus.core',
-  appName: 'Nexus Core',
-  webDir: '.',
-  bundledWebRuntime: false,
+  appId: 'com.example.app',
+  appName: 'hellotrracker',
+  webDir: 'www'
 };
 
 export default config;
-

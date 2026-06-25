@@ -1,0 +1,73 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Install Options</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="min-h-screen bg-[#020408] text-slate-100 flex items-center justify-center p-4">
+  <div class="w-full max-w-md hud-glass rounded-2xl border border-slate-900/70 p-5" style="backdrop-filter: blur(14px); background: rgba(8,6,18,0.65);">
+    <h1 class="font-hud font-black tracking-widest text-lg">Install</h1>
+    <p class="text-slate-400 text-sm mt-2">Choose how to get the app on your phone.</p>
+
+    <div class="mt-5 space-y-3">
+      <a id="install-pwa" class="block w-full text-center py-3 rounded-xl bg-cyan-950/40 border border-cyan-800/50 text-cyan-300 hover:text-white transition">
+        Install App (PWA)
+      </a>
+      <a id="download-apk" class="block w-full text-center py-3 rounded-xl bg-slate-950 border border-slate-800 text-slate-200 hover:text-white transition">
+        Download Android APK (WebView)
+      </a>
+    </div>
+
+    <p id="pwa-status" class="text-xs text-slate-500 mt-4"></p>
+
+    <div class="text-[11px] text-slate-500 mt-6">
+      Note: APK link requires you to host a build artifact (apk/app bundle).
+    </div>
+  </div>
+
+  <script>
+    // PWA install prompt
+    const btnPwa = document.getElementById('install-pwa');
+    const status = document.getElementById('pwa-status');
+    let deferredPrompt = null;
+
+    window.addEventListener('beforeinstallprompt', (e) => {
+      e.preventDefault();
+      deferredPrompt = e;
+      btnPwa.classList.remove('opacity-50');
+      btnPwa.classList.add('');
+      status.textContent = 'PWA install available on this device.';
+    });
+
+    window.addEventListener('appinstalled', () => {
+      status.textContent = 'Installed!';
+    });
+
+    btnPwa.addEventListener('click', async () => {
+      if (!deferredPrompt) {
+        status.textContent = 'PWA install not available. Use APK download instead.';
+        return;
+      }
+      deferredPrompt.prompt();
+      const choiceResult = await deferredPrompt.userChoice;
+      deferredPrompt = null;
+      if (choiceResult.outcome === 'accepted') status.textContent = 'Install accepted.';
+      else status.textContent = 'Install dismissed.';
+    });
+
+    // APK download placeholder (you will set URL)
+    document.getElementById('download-apk').addEventListener('click', () => {
+      // Update this to your hosted artifact when ready
+      const apkUrl = 'REPLACE_ME_WITH_YOUR_APK_URL';
+      window.location.href = apkUrl;
+    });
+
+    // Start disabled
+    btnPwa.classList.add('opacity-50');
+    status.textContent = 'If install button is disabled, PWA install may not be supported here.';
+  </script>
+</body>
+</html>
+
