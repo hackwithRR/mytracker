@@ -634,12 +634,26 @@
 
                 // Live sync
                 res.bundle.subscribeStateFromCloud((updated) => {
+                    // Firebase may emit partial/delta or briefly empty payloads during reconnect.
+                    // Never replace the whole local ledger with an incomplete snapshot.
                     if (!updated || typeof updated !== 'object') return;
+
                     const sz = Object.keys(updated).length;
-                    writeTerminalLog('SYSTEM', `CLOUD: live update applied. entries=${sz}`);
-                    localStorage.setItem('nexus_v3_matrix_ledger', JSON.stringify(updated));
-                    compileAppInterfaceMatrix();
-                    runMetricsEngine();
+                    if (sz === 0) {
+                        writeTerminalLog('SYSTEM', 'CLOUD: live update skipped (empty payload)');
+                        return;
+                    }
+
+                    try {
+                        const prev = loadStateLedger();
+                        const merged = { ...prev, ...updated };
+                        writeTerminalLog('SYSTEM', `CLOUD: live update merged. prev=${Object.keys(prev).length} upd=${sz} now=${Object.keys(merged).length}`);
+                        localStorage.setItem('nexus_v3_matrix_ledger', JSON.stringify(merged));
+                        compileAppInterfaceMatrix();
+                        runMetricsEngine();
+                    } catch (e) {
+                        writeTerminalLog('ERROR', `CLOUD: merge failed (${String(e && e.message ? e.message : e)})`);
+                    }
                 });
 
                 // Also stash bundle methods so toggleMatrixNode can push+read reliably.

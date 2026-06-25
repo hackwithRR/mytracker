@@ -779,12 +779,25 @@
 
                 // 2) Live subscription
                 res.bundle.subscribeStateFromCloud((updated) => {
+                    // Avoid replacing local ledger with partial/delta payloads.
                     if (!updated || typeof updated !== 'object') return;
+
                     const sz = Object.keys(updated).length;
-                    writeTerminalLog('SYSTEM', `CLOUD: live update applied. entries=${sz}`);
-                    localStorage.setItem('dermal_v3_matrix_ledger', JSON.stringify(updated));
-                    compileAppInterfaceMatrix();
-                    runMetricsEngine();
+                    if (sz === 0) {
+                        writeTerminalLog('SYSTEM', 'CLOUD: live update skipped (empty payload)');
+                        return;
+                    }
+
+                    try {
+                        const prev = loadStateLedger();
+                        const merged = { ...prev, ...updated };
+                        writeTerminalLog('SYSTEM', `CLOUD: live update merged. prev=${Object.keys(prev).length} upd=${sz} now=${Object.keys(merged).length}`);
+                        localStorage.setItem('dermal_v3_matrix_ledger', JSON.stringify(merged));
+                        compileAppInterfaceMatrix();
+                        runMetricsEngine();
+                    } catch (e) {
+                        writeTerminalLog('ERROR', `CLOUD: merge failed (${String(e && e.message ? e.message : e)})`);
+                    }
                 });
 
                 // Keep bundle available for push.
